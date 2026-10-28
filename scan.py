@@ -52,6 +52,9 @@ def send_text(to, msg):
 
 def main():
     load_env()
+    if "--test-text" in sys.argv:
+        send_text(os.environ["TEXT_TO"], "Card radar test: texting works.")
+        print("test text sent"); return
     cid, secret, to = os.environ.get("EBAY_CLIENT_ID"), os.environ.get("EBAY_CLIENT_SECRET"), os.environ.get("TEXT_TO")
     if not (cid and secret):
         sys.exit("Missing EBAY_CLIENT_ID / EBAY_CLIENT_SECRET in .env")
