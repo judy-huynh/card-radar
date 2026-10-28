@@ -1,0 +1,126 @@
+<title>Card Radar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one column, summary strip → live alert table (the decision surface) → watchlist with editable thresholds → log. Light only, by request. */
+:root{
+  --bg:#ffffff; --fg:#141516; --muted:#6b6f75; --line:#e4e6e9; --panel:#f6f7f8;
+  --accent:#0b57d0; --good:#15803d; --good-bg:#e8f5ec; --warn:#b45309; --warn-bg:#fdf2e3; --bad:#b91c1c; --bad-bg:#fbe9e9;
+  --font:"Helvetica Neue",Helvetica,Arial,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.45;
+  padding-block:0 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px;padding:22px 0 14px;border-bottom:1px solid var(--line)}
+h1{font-size:20px;font-weight:700;margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px}
+.sub b{color:var(--fg);font-weight:600}
+h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:28px 0 10px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
+.tile{background:var(--panel);border-radius:6px;padding:12px 14px}
+.tile .k{font-size:12px;color:var(--muted)}
+.tile .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:2px}
+.tile .v small{font-size:13px;font-weight:400;color:var(--muted);margin-left:6px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+table{width:100%;border-collapse:collapse;min-width:820px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;text-align:left;padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right}
+.title{font-weight:600}
+.meta{color:var(--muted);font-size:12px;margin-top:2px}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.good{background:var(--good-bg);color:var(--good)} .warn{background:var(--warn-bg);color:var(--warn)} .bad{background:var(--bad-bg);color:var(--bad)}
+.gap{font-weight:700;font-size:15px}
+.gap.good{background:none;padding:0} .gap.warn{background:none;padding:0} .gap.bad{background:none;padding:0}
+.acts{display:flex;gap:6px;white-space:nowrap}
+button,a.btn{font:inherit;font-size:12px;font-weight:600;padding:5px 10px;border-radius:4px;border:1px solid var(--line);background:#fff;color:var(--fg);cursor:pointer;text-decoration:none}
+button.primary,a.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible,a.btn:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+tr.hit td{background:#eef4ff}
+tr.focus td{box-shadow:inset 3px 0 0 var(--accent)}
+input.th{font:inherit;width:64px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;text-align:right;font-variant-numeric:tabular-nums}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+.log td{color:var(--muted)} .log td.title{color:var(--fg)}
+@media (max-width:600px){.tile .v{font-size:20px}}
+</style>
+
+<div class="wrap">
+<header>
+  <div><h1>Card Radar</h1><div class="sub">Sourcing desk · WOTC-era targets · <b>example data</b></div></div>
+  <div class="sub">Last scan <b>10:42</b> · eBay US + CA · FX <b>1 USD = 1.38 CAD</b> · next scan in 4 min</div>
+</header>
+
+<div class="tiles">
+  <div class="tile"><div class="k">Live alerts</div><div class="v">3<small>2 new since 9am</small></div></div>
+  <div class="tile"><div class="k">Best gap right now</div><div class="v">−31%<small>Skyridge Crystal Lugia</small></div></div>
+  <div class="tile"><div class="k">Alerts this week</div><div class="v">14<small>2 bought · 9 passed</small></div></div>
+  <div class="tile"><div class="k">Watching</div><div class="v">6<small>cards · 2 markets</small></div></div>
+</div>
+
+<h2>Live alerts · act or pass</h2>
+<div class="tbl"><table>
+<thead><tr>
+  <th>Listing</th><th class="num">Ask</th><th class="num">Landed · CA</th><th class="num">Landed · NYC</th><th class="num">Collectr</th><th class="num">Gap</th><th>Condition</th><th>Seller</th><th>Age</th><th></th>
+</tr></thead>
+<tbody>
+<tr id="alert-1042" class="focus">
+  <td><div class="title">Skyridge Crystal Lugia 149/144</div><div class="meta">eBay CA · Toronto · ships CA only</div></td>
+  <td class="num">C$ 610</td><td class="num">US$ 452</td><td class="num"><span class="sub">n/a</span></td><td class="num">US$ 655</td>
+  <td class="num"><span class="gap good">−31%</span></td>
+  <td><span class="pill good">Raw · NM claimed</span><div class="meta">8 photos</div></td>
+  <td>tdotcards <span class="meta">(1,204 · 99.8%)</span></td><td>12 min</td>
+  <td class="acts"><a class="btn primary" href="#">Open</a><button>Pass</button><button>Bought</button></td>
+</tr>
+<tr id="alert-1041">
+  <td><div class="title">Dark Gengar 6/105 Neo Destiny Holo</div><div class="meta">eBay US · Ohio · ships US + CA</div></td>
+  <td class="num">US$ 118</td><td class="num">US$ 139</td><td class="num">US$ 124</td><td class="num">US$ 165</td>
+  <td class="num"><span class="gap good">−25%</span></td>
+  <td><span class="pill warn">Raw · LP, edge wear</span><div class="meta">4 photos</div></td>
+  <td>mlb_cardz <span class="meta">(312 · 100%)</span></td><td>38 min</td>
+  <td class="acts"><a class="btn primary" href="#">Open</a><button>Pass</button><button>Bought</button></td>
+</tr>
+<tr id="alert-1039">
+  <td><div class="title">Legendary Collection Charizard 3/110 Reverse Holo</div><div class="meta">eBay US · California · ships US + CA</div></td>
+  <td class="num">US$ 1,250</td><td class="num">US$ 1,452</td><td class="num">US$ 1,268</td><td class="num">US$ 1,400</td>
+  <td class="num"><span class="gap bad">−9%</span></td>
+  <td><span class="pill bad">Raw · "read description"</span><div class="meta">2 photos</div></td>
+  <td>fastflip88 <span class="meta">(41 · 96.1%)</span></td><td>1 h</td>
+  <td class="acts"><a class="btn primary" href="#">Open</a><button>Pass</button><button>Bought</button></td>
+</tr>
+</tbody></table></div>
+<div class="note">Landed = ask + shipping + FX + estimated tax/duty. Gap = landed (cheaper address) vs Collectr. Highlighted row is the alert you tapped in ntfy.</div>
+
+<h2>Watchlist · thresholds you control</h2>
+<div class="tbl"><table>
+<thead><tr><th>Card</th><th>Markets</th><th class="num">Collectr</th><th class="num">Alert when gap ≥</th><th class="num">Max ask</th><th>Condition</th><th class="num">Hits · 7d</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td class="title">Legendary Collection reverse holos</td><td>US · CA</td><td class="num">per card</td><td class="num"><input class="th" id="th-lc" value="25%"></td><td class="num"><input class="th" id="mx-lc" value="1500"></td><td>NM only</td><td class="num">4</td><td><span class="pill good">Active</span></td></tr>
+<tr><td class="title">Southern Islands (English, foil)</td><td>US · CA</td><td class="num">per card</td><td class="num"><input class="th" id="th-si" value="20%"></td><td class="num"><input class="th" id="mx-si" value="300"></td><td>NM / LP</td><td class="num">1</td><td><span class="pill good">Active</span></td></tr>
+<tr><td class="title">Skyridge holos incl. Crystal</td><td>US · CA</td><td class="num">per card</td><td class="num"><input class="th" id="th-sk" value="25%"></td><td class="num"><input class="th" id="mx-sk" value="1200"></td><td>NM only</td><td class="num">3</td><td><span class="pill good">Active</span></td></tr>
+<tr><td class="title">Aquapolis holos incl. Crystal</td><td>US · CA</td><td class="num">per card</td><td class="num"><input class="th" id="th-aq" value="25%"></td><td class="num"><input class="th" id="mx-aq" value="800"></td><td>NM only</td><td class="num">2</td><td><span class="pill good">Active</span></td></tr>
+<tr><td class="title">Dark Gengar 6/105 Neo Destiny</td><td>US · CA</td><td class="num">US$ 165</td><td class="num"><input class="th" id="th-dg" value="20%"></td><td class="num"><input class="th" id="mx-dg" value="200"></td><td>NM / LP</td><td class="num">3</td><td><span class="pill good">Active</span></td></tr>
+<tr><td class="title">Expedition holos</td><td>US · CA</td><td class="num">per card</td><td class="num"><input class="th" id="th-ex" value="30%"></td><td class="num"><input class="th" id="mx-ex" value="400"></td><td>NM only</td><td class="num">1</td><td><span class="pill warn">Paused</span></td></tr>
+</tbody></table></div>
+<div class="note">Edits here write straight to watchlist.json. The scanner reads it on every run, so changes take effect at the next scan without touching code.</div>
+
+<h2>Alert log · what you did and whether it was right</h2>
+<div class="tbl"><table class="log">
+<thead><tr><th>When</th><th>Listing</th><th class="num">Landed</th><th class="num">Collectr</th><th class="num">Gap</th><th>Decision</th><th>Outcome</th></tr></thead>
+<tbody>
+<tr><td>Tue 10:42</td><td class="title">Skyridge Crystal Lugia 149/144</td><td class="num">US$ 452</td><td class="num">US$ 655</td><td class="num">−31%</td><td>Open</td><td>—</td></tr>
+<tr><td>Mon 21:15</td><td class="title">Aquapolis Crystal Kingdra 148/147</td><td class="num">US$ 388</td><td class="num">US$ 520</td><td class="num">−25%</td><td>Bought</td><td>Arrived NM · listed on TCGplayer</td></tr>
+<tr><td>Mon 16:03</td><td class="title">Expedition Charizard 6/165 Holo</td><td class="num">US$ 290</td><td class="num">US$ 310</td><td class="num">−6%</td><td>Passed</td><td>Sold 2 h later at ask</td></tr>
+<tr><td>Sun 11:40</td><td class="title">Dark Gengar 6/105 Holo</td><td class="num">US$ 97</td><td class="num">US$ 165</td><td class="num">−41%</td><td>Passed</td><td>Seller 12 feedback, 1 photo · likely fake</td></tr>
+<tr><td>Sat 09:12</td><td class="title">Southern Islands Mew 1/18</td><td class="num">US$ 44</td><td class="num">US$ 60</td><td class="num">−27%</td><td>Bought</td><td>Arrived LP, not NM · hold</td></tr>
+</tbody></table></div>
+</div>
+
+<script>
+// ntfy "click" URL carries #alert-<id>; highlight that row on open.
+function focusHash(){document.querySelectorAll('tr.focus').forEach(r=>r.classList.remove('focus'));
+  var id=(location.hash||'').slice(1); var row=id&&document.getElementById(id); if(row){row.classList.add('focus');row.scrollIntoView({block:'center'});}}
+addEventListener('hashchange',focusHash); if(location.hash)focusHash();
+document.querySelectorAll('.acts button').forEach(b=>b.addEventListener('click',e=>{var tr=e.target.closest('tr');tr.classList.add('hit');e.target.textContent=e.target.textContent==='Pass'?'Passed':'Bought ✓';}));
+</script>
