@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Stage 1: scan eBay for the watchlist cards and text the current cheapest listings.
 No buying. No thresholds yet. Just prove we can see listings and get a text."""
-import base64, json, os, sqlite3, subprocess, sys, time, urllib.parse, urllib.request
+import base64, json, os, sqlite3, sys, time, urllib.parse, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token"
@@ -47,15 +47,30 @@ def db():
     return con
 
 def send_text(to, msg):
-    script = f'tell application "Messages" to send {json.dumps(msg)} to buddy {json.dumps(to)}'
-    subprocess.run(["osascript", "-e", script], check=True)
+    """Push notification. Telegram if TELEGRAM_BOT_TOKEN is set, else ntfy.sh topic in NTFY_TOPIC."""
+    tok = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if tok:
+        body = urllib.parse.urlencode({"chat_id": to, "text": msg, "disable_web_page_preview": "true"}).encode()
+        req = urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=body)
+    elif os.environ.get("NTFY_TOPIC"):
+        req = urllib.request.Request(f"https://ntfy.sh/{os.environ['NTFY_TOPIC']}", data=msg.encode(),
+                                     headers={"Title": "Card radar"})
+    else:
+        sys.exit("Set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID, or NTFY_TOPIC, in .env")
+    with urllib.request.urlopen(req, timeout=20) as r:
+        r.read()
 
 def main():
     load_env()
+    if "--chat-id" in sys.argv:
+        with urllib.request.urlopen(f"https://api.telegram.org/bot{os.environ['TELEGRAM_BOT_TOKEN']}/getUpdates") as r:
+            for u in json.load(r).get("result", []):
+                m = u.get("message", {}); print(m.get("chat", {}).get("id"), m.get("from", {}).get("first_name"))
+        return
     if "--test-text" in sys.argv:
-        send_text(os.environ["TEXT_TO"], "Card radar test: texting works.")
+        send_text(os.environ.get("TELEGRAM_CHAT_ID"), "Card radar test: texting works.")
         print("test text sent"); return
-    cid, secret, to = os.environ.get("EBAY_CLIENT_ID"), os.environ.get("EBAY_CLIENT_SECRET"), os.environ.get("TEXT_TO")
+    cid, secret, to = os.environ.get("EBAY_CLIENT_ID"), os.environ.get("EBAY_CLIENT_SECRET"), os.environ.get("TELEGRAM_CHAT_ID") or os.environ.get("NTFY_TOPIC")
     if not (cid and secret):
         sys.exit("Missing EBAY_CLIENT_ID / EBAY_CLIENT_SECRET in .env")
     cfg = json.load(open(os.path.join(HERE, "watchlist.json")))
