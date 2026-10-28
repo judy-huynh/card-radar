@@ -1,13 +1,108 @@
 {
   "cards": [
-    {"id": "lc-reverse-holo",   "query": "Legendary Collection reverse holo pokemon",  "exclude": ["lot", "proxy", "custom", "replica", "bulk"], "collectr_usd": null},
-    {"id": "southern-islands",  "query": "Southern Islands pokemon card",              "exclude": ["lot", "proxy", "custom", "replica", "binder", "sealed"], "collectr_usd": null},
-    {"id": "skyridge-holo",     "query": "Skyridge holo pokemon",                      "exclude": ["lot", "proxy", "custom", "replica", "reverse"], "collectr_usd": null},
-    {"id": "aquapolis-holo",    "query": "Aquapolis holo pokemon",                     "exclude": ["lot", "proxy", "custom", "replica", "reverse"], "collectr_usd": null},
-    {"id": "dark-gengar",       "query": "Dark Gengar Neo Destiny holo",               "exclude": ["lot", "proxy", "custom", "replica"], "collectr_usd": null},
-    {"id": "expedition-holo",   "query": "Expedition holo pokemon",                    "exclude": ["lot", "proxy", "custom", "replica", "reverse"], "collectr_usd": null}
+    {
+      "id": "lc-reverse-holo",
+      "query": "Legendary Collection reverse holo pokemon",
+      "exclude": [
+        "lot",
+        "proxy",
+        "custom",
+        "replica",
+        "bulk"
+      ],
+      "collectr_usd": null,
+      "alert_gap_pct": 25,
+      "max_price_usd": 500,
+      "condition": "NM",
+      "paused": false
+    },
+    {
+      "id": "southern-islands",
+      "query": "Southern Islands pokemon card",
+      "exclude": [
+        "lot",
+        "proxy",
+        "custom",
+        "replica",
+        "binder",
+        "sealed"
+      ],
+      "collectr_usd": null,
+      "alert_gap_pct": 25,
+      "max_price_usd": 500,
+      "condition": "NM",
+      "paused": false
+    },
+    {
+      "id": "skyridge-holo",
+      "query": "Skyridge holo pokemon",
+      "exclude": [
+        "lot",
+        "proxy",
+        "custom",
+        "replica",
+        "reverse"
+      ],
+      "collectr_usd": null,
+      "alert_gap_pct": 25,
+      "max_price_usd": 500,
+      "condition": "NM",
+      "paused": false
+    },
+    {
+      "id": "aquapolis-holo",
+      "query": "Aquapolis holo pokemon",
+      "exclude": [
+        "lot",
+        "proxy",
+        "custom",
+        "replica",
+        "reverse"
+      ],
+      "collectr_usd": null,
+      "alert_gap_pct": 25,
+      "max_price_usd": 500,
+      "condition": "NM",
+      "paused": false
+    },
+    {
+      "id": "dark-gengar",
+      "query": "Dark Gengar Neo Destiny holo",
+      "exclude": [
+        "lot",
+        "proxy",
+        "custom",
+        "replica"
+      ],
+      "collectr_usd": null,
+      "alert_gap_pct": 25,
+      "max_price_usd": 500,
+      "condition": "NM",
+      "paused": false
+    },
+    {
+      "id": "expedition-holo",
+      "query": "Expedition holo pokemon",
+      "exclude": [
+        "lot",
+        "proxy",
+        "custom",
+        "replica",
+        "reverse"
+      ],
+      "collectr_usd": null,
+      "alert_gap_pct": 25,
+      "max_price_usd": 500,
+      "condition": "NM",
+      "paused": false
+    }
   ],
-  "marketplaces": ["EBAY_US", "EBAY_CA"],
+  "marketplaces": [
+    "EBAY_US",
+    "EBAY_CA"
+  ],
   "max_price_usd": 500,
-  "results_per_card": 5
+  "results_per_card": 5,
+  "fx_cad_per_usd": 1.4,
+  "scan_interval_min": 5
 }
