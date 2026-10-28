@@ -70,23 +70,28 @@
 
   async function load() {
     try { render(await api("/api/state")); }
-    catch (e) { $("#scaninfo").textContent = "Server unreachable: " + e.message; }
+    catch (e) {
+      if (window.SAMPLE) { render(window.SAMPLE); $("#subtitle").innerHTML = 'Sourcing desk · WOTC-era targets · <b>example data</b>'; }
+      else $("#scaninfo").textContent = "Server unreachable: " + e.message;
+    }
   }
 
   document.addEventListener("click", async e => {
     const b = e.target.closest("button[data-act]");
     if (b) {
       const id = b.closest("tr").dataset.id;
+      if (window.SAMPLE) { b.textContent = b.dataset.act === "bought" ? "Bought ✓" : "Passed"; return; }
       await api(`/api/alerts/${id}/decision`, { method: "POST", body: JSON.stringify({ decision: b.dataset.act }) });
       toast(b.dataset.act === "bought" ? "Marked bought" : "Passed"); load();
     }
     const p = e.target.closest("button[data-k=paused]");
-    if (p) { const i = p.closest("tr").dataset.i; await api(`/api/watchlist/${i}`, { method: "POST", body: JSON.stringify({ paused: p.textContent === "Active" }) }); load(); }
+    if (p) { if (window.SAMPLE) return; const i = p.closest("tr").dataset.i; await api(`/api/watchlist/${i}`, { method: "POST", body: JSON.stringify({ paused: p.textContent === "Active" }) }); load(); }
   });
   document.addEventListener("change", async e => {
     const inp = e.target.closest("input.th");
     if (!inp) return;
     const i = inp.closest("tr").dataset.i, v = Number(inp.value);
+    if (window.SAMPLE) { toast("Saved (example)"); return; }
     if (Number.isNaN(v)) { toast("Enter a number"); return; }
     await api(`/api/watchlist/${i}`, { method: "POST", body: JSON.stringify({ [inp.dataset.k]: v }) });
     toast("Saved to watchlist.json");
