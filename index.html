@@ -9,77 +9,85 @@
 <body>
 <div class="wrap">
 <header>
-  <div>
-    <h1>Card Radar</h1>
-    <div class="sub" id="subtitle">Six WOTC-era targets · eBay worldwide · values from Collectr or TCGplayer</div>
-  </div>
-  <div class="status">
-    <div class="sub" id="scaninfo">Loading…</div>
-    <a href="#system" class="syspill" id="syspill">Checking agents…</a>
-  </div>
+  <h1>Card Radar</h1>
+  <div class="status"><span class="sub" id="scaninfo">Loading…</span><a href="#settings" class="syspill" id="syspill">…</a></div>
 </header>
 
-<div class="tiles" id="tiles"></div>
+<nav class="views" id="views" aria-label="Views">
+  <a href="#deals" data-view="deals">Deals <span class="badge" id="n-deals"></span></a>
+  <a href="#leads" data-view="leads">Leads <span class="badge" id="n-leads"></span></a>
+  <a href="#values" data-view="values">Values</a>
+  <a href="#settings" data-view="settings">Settings</a>
+</nav>
 
-<section>
-  <h2>Deals · pushed to your phone</h2>
-  <div class="tbl"><table id="deals">
-    <thead><tr><th class="col-card">Card</th><th class="num">Ask</th><th class="num">Landed (US$)</th><th class="num">Value (US$)</th><th class="num">Gap</th><th>Condition</th><th>Seller</th><th></th></tr></thead>
-    <tbody></tbody></table></div>
-  <p class="note">Landed = ask + shipping + FX + sales tax + import estimate, to the cheaper of Canada or NYC. * means shipping was estimated. Value is condition-adjusted.</p>
-</section>
+<main>
+  <section data-panel="deals">
+    <p class="lede">Cards under your threshold right now. Each one was pushed to your phone.</p>
+    <div class="tiles" id="tiles"></div>
+    <div class="tbl"><table id="deals">
+      <thead><tr><th class="col-card">Card</th><th class="num">Landed (US$)</th><th class="num">Value (US$)</th><th class="num">Gap</th><th>Condition</th><th></th></tr></thead>
+      <tbody></tbody></table></div>
+    <div class="pager" id="pg-deals"></div>
+    <details class="history">
+      <summary>History: deals you passed or bought <span class="count" id="n-log"></span></summary>
+      <div class="tbl"><table id="log" class="log">
+        <thead><tr><th class="col-card">Card</th><th class="num">Landed</th><th class="num">Value</th><th>Decision</th><th>Outcome</th></tr></thead>
+        <tbody></tbody></table></div>
+      <div class="pager" id="pg-log"></div>
+    </details>
+  </section>
 
-<section>
-  <div class="sectionhead">
-    <h2>Everything the scouts found</h2>
-    <div class="seg" id="feedtabs" role="tablist"></div>
-  </div>
-  <div class="tbl"><table id="feed">
-    <thead><tr><th class="col-found">Found</th><th class="col-card">Card</th><th>Market</th><th class="num">Landed (US$)</th><th class="num">Value (US$)</th><th class="num">Gap</th><th>Result</th></tr></thead>
-    <tbody></tbody></table></div>
-</section>
+  <section data-panel="leads" hidden>
+    <div class="sectionhead">
+      <p class="lede">Everything the scouts found. Start with “Worth a look”.</p>
+      <div class="seg" id="feedtabs" role="tablist"></div>
+    </div>
+    <p class="note callout" id="feednote" hidden>TCGplayer rows show the cheapest copy for sale. Its condition isn't shown and it's usually played, so check the listing before buying. These never push to your phone.</p>
+    <div class="tbl"><table id="feed">
+      <thead><tr><th class="col-card">Card</th><th>Where</th><th class="num">Landed (US$)</th><th class="num">Value (US$)</th><th class="num">Gap</th><th>Why</th></tr></thead>
+      <tbody></tbody></table></div>
+    <div class="pager" id="pg-feed"></div>
+  </section>
 
-<section>
-  <h2>Targets · thresholds you control</h2>
-  <div class="tbl"><table id="targets">
-    <thead><tr><th class="col-card">Target</th><th class="num">Push at gap ≥ %</th><th class="num">Watch at gap ≥ %</th><th class="num">Min value (US$)</th><th class="num">Max landed (US$)</th><th class="num">7 days</th><th>Status</th></tr></thead>
-    <tbody></tbody></table></div>
-  <p class="note">Changes save to config/targets.json and re-score open listings right away. The next scan uses them too.</p>
-</section>
+  <section data-panel="values" hidden>
+    <div class="sectionhead">
+      <p class="lede">The value each alert compares against. Your Collectr number wins over TCGplayer.</p>
+      <select id="valtarget" aria-label="Target"></select>
+    </div>
+    <div class="tbl"><table id="values">
+      <thead><tr><th class="col-card">Card</th><th class="num">TCGplayer</th><th class="num">Collectr</th></tr></thead>
+      <tbody></tbody></table></div>
+    <div class="pager" id="pg-values"></div>
+    <details class="bulk" id="bulk">
+      <summary>Paste several Collectr values at once</summary>
+      <p class="note">One card per line: card number, then the value. Add 1st, unlimited or reverse when a number has more than one version.</p>
+      <textarea id="bulktext" rows="6" placeholder="H14 214.50&#10;149/147 520&#10;6 1st 1000"></textarea>
+      <div class="bulkrow"><button class="primary" id="bulksave" type="button">Save for this target</button><span class="note" id="bulkresult"></span></div>
+    </details>
+  </section>
 
-<section>
-  <div class="sectionhead">
-    <h2>Card values · add Collectr where you trust it more</h2>
-    <select id="valtarget" aria-label="Target"></select>
-  </div>
-  <div class="tbl scroll"><table id="values">
-    <thead><tr><th class="col-card">Card</th><th class="num">TCGplayer market</th><th class="num">Collectr value</th></tr></thead>
-    <tbody></tbody></table></div>
-  <p class="note">A Collectr value, when filled in, is the value alerts use for that card. Clear the box to go back to TCGplayer. TCGplayer prices refresh daily.</p>
-  <details class="bulk" id="bulk">
-    <summary>Paste several Collectr values at once</summary>
-    <p class="note">One card per line: card number, then the Collectr value. Add 1st, unlimited or reverse when a number has more than one version.</p>
-    <textarea id="bulktext" rows="6" placeholder="H14 214.50&#10;149/147 520&#10;6 1st 1000"></textarea>
-    <div class="bulkrow"><button class="primary" id="bulksave" type="button">Save values for this target</button><span class="note" id="bulkresult"></span></div>
-  </details>
-</section>
-
-<section id="system">
-  <h2>System · agents</h2>
-  <div class="tbl"><table id="agents">
-    <thead><tr><th>Agent</th><th>Job</th><th>Last OK</th><th>Last problem</th><th>Detail</th></tr></thead>
-    <tbody></tbody></table></div>
-  <div class="tbl spaced"><table id="runs">
-    <thead><tr><th>Scan</th><th class="num">Searches</th><th class="num">Results</th><th class="num">New</th><th class="num">Pushes</th><th>Notes</th></tr></thead>
-    <tbody></tbody></table></div>
-</section>
-
-<section>
-  <h2>Decision log · what you did and how it turned out</h2>
-  <div class="tbl"><table id="log" class="log">
-    <thead><tr><th>Alert</th><th>Card</th><th class="num">Landed</th><th class="num">Value</th><th class="num">Gap</th><th>Decision</th><th>Outcome</th></tr></thead>
-    <tbody></tbody></table></div>
-</section>
+  <section data-panel="settings" hidden>
+    <h2>Alert thresholds</h2>
+    <div class="tbl"><table id="targets">
+      <thead><tr><th class="col-card">Target</th><th class="num">Push at gap ≥ %</th><th class="num">Min value</th><th class="num">Max landed</th><th>Status</th></tr></thead>
+      <tbody></tbody></table></div>
+    <p class="note">Changes save immediately and re-score open listings.</p>
+    <details class="more"><summary>More thresholds</summary>
+      <div class="tbl"><table id="targets2">
+        <thead><tr><th class="col-card">Target</th><th class="num">Watch at gap ≥ %</th><th class="num">Found · 7 days</th></tr></thead>
+        <tbody></tbody></table></div>
+    </details>
+    <h2 id="system">System health</h2>
+    <div class="tbl"><table id="agents">
+      <thead><tr><th>Agent</th><th>Last OK</th><th>Last problem</th></tr></thead>
+      <tbody></tbody></table></div>
+    <details class="more"><summary>Recent scans</summary>
+      <div class="tbl"><table id="runs">
+        <thead><tr><th>Scan</th><th class="num">Searches</th><th class="num">Results</th><th class="num">New</th><th class="num">Pushes</th><th>Notes</th></tr></thead>
+        <tbody></tbody></table></div>
+    </details>
+  </section>
+</main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="dashboard/sample.js"></script>

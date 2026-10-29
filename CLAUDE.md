@@ -25,6 +25,11 @@ ask only on real forks (money, strategy, terms of service), decide routine thing
   the preview artifact (https://claude.ai/artifact/KesV4xBus9Qa1gpn8SJv4n) from `dashboard/mock.html`.
 - Python 3.9 stdlib only on the iMac. No pip installs.
 
+## Dashboard principles (Judy, 2026-10-28: "overwhelming")
+- Four views, one job each: Deals (act), Leads (browse), Values (Collectr), Settings (thresholds + health).
+- Page every list that can grow (deals 10, leads/values 20). Default to the useful subset ("Worth a look").
+- Say a caveat once above a table, never on every row. Hide secondary detail behind <details>.
+
 ## Data sources and their limits
 - Values: tcgcsv.com (daily TCGplayer mirror). Collectr has no API; its values come in as manual overrides.
 - Listings: eBay Browse API (5,000 calls/day default). The cycle enforces the budget.

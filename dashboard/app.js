@@ -1,32 +1,37 @@
-// Card Radar dashboard. No framework: fetch /api/state, render, post edits back.
-// When window.SAMPLE exists (GitHub Pages / design preview) it renders that instead and edits stay local.
+// Card Radar dashboard. Four views (Deals, Leads, Values, Settings), every long list paged.
+// No framework: fetch /api/state, render the current view, post edits back.
+// When window.SAMPLE exists (GitHub Pages / design preview) it renders that and edits stay local.
 (function () {
   "use strict";
   const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const usd = v => v == null ? "—" : Math.round(v).toLocaleString("en-US");
-  const ask = (v, cur) => v == null ? "—" : `${Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 })} <span class="src">${esc(cur)}</span>`;
   const gapCls = g => g == null ? "" : g <= -20 ? "c-good" : g <= -5 ? "c-warn" : "";
-  const gap = g => g == null ? "—" : `<span class="gap ${gapCls(g)}">${g > 0 ? "+" : ""}${Math.round(g)}%</span>`;
-  const MP_COUNTRY = { TCGPLAYER: "US", EBAY_US: "US", EBAY_CA: "CA", EBAY_GB: "GB", EBAY_AU: "AU", EBAY_DE: "DE" };
-  const market = l => `${esc(MP[l.marketplace] || l.marketplace)}${l.item_country && l.item_country !== MP_COUNTRY[l.marketplace] ? ` · ships from ${esc(l.item_country)}` : ""}`;
-  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const gap = g => g == null ? '<span class="na">—</span>' : `<span class="gap ${gapCls(g)}">${g > 0 ? "+" : ""}${Math.round(g)}%</span>`;
   const MP = { TCGPLAYER: "TCGplayer", EBAY_US: "eBay US", EBAY_CA: "eBay CA", EBAY_GB: "eBay UK", EBAY_AU: "eBay AU", EBAY_DE: "eBay DE" };
-  const AGENT_JOBS = {
-    catalog: "Pulls every target card and its TCGplayer price, daily",
-    fx: "Exchange rates, daily",
-    decider: "Matches, values and scores each listing",
-    notifier: "Sends ntfy pushes",
-    watchdog: "Health checks and the daily digest",
+  const MP_COUNTRY = { TCGPLAYER: "US", EBAY_US: "US", EBAY_CA: "CA", EBAY_GB: "GB", EBAY_AU: "AU", EBAY_DE: "DE" };
+  const AGENTS = {
+    catalog: ["Card values", "TCGplayer prices for every target card, daily"],
+    fx: ["Exchange rates", "Daily currency rates"],
+    decider: ["Scoring", "Matches and scores each listing"],
+    notifier: ["Phone alerts", "Sends ntfy pushes"],
+    watchdog: ["Watchdog", "Warns you when something breaks"],
   };
-  const variant = s => (s || "").replace("Holofoil", "Holo").replace("Unlimited Holo", "Unlimited holo");
+  const PAGE = { deals: 10, log: 10, feed: 20, values: 20 };
+  const VIEWS = ["deals", "leads", "values", "settings"];
+  const SAMPLE = window.SAMPLE || null;
+  let S = null, view = "deals", feedTab = "look", valTarget = null, valRows = [];
+  const page = { deals: 0, log: 0, feed: 0, values: 0 };
+
+  const variant = s => (s || "").replace("Holofoil", "Holo");
+  const market = l => `${esc(MP[l.marketplace] || l.marketplace)}${l.item_country && l.item_country !== MP_COUNTRY[l.marketplace] ? ` · from ${esc(l.item_country)}` : ""}`;
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
   const ago = ts => {
     if (!ts) return "—";
     const m = Math.round((Date.now() - new Date(ts.replace(" ", "T"))) / 60000);
-    return m < 1 ? "now" : m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`;
+    return m < 1 ? "now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
   };
-  const SAMPLE = window.SAMPLE || null;
-  let S = null, feedTab = "all", valTarget = null;
 
   async function api(path, opts) {
     const r = await fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts));
@@ -40,155 +45,216 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
   }
 
-  function cardCell(l) {
+  // ---- paging ------------------------------------------------------------
+  function slice(key, rows) {
+    const size = PAGE[key], pages = Math.max(1, Math.ceil(rows.length / size));
+    page[key] = Math.min(page[key], pages - 1);
+    return rows.slice(page[key] * size, page[key] * size + size);
+  }
+  function pager(key, total) {
+    const el = $(`#pg-${key}`), size = PAGE[key];
+    if (total <= size) { el.innerHTML = ""; return; }
+    const from = page[key] * size + 1, to = Math.min(total, from + size - 1);
+    el.innerHTML = `<span>${from}–${to} of ${total}</span><span class="acts">
+      <button data-page="${key}" data-dir="-1" ${page[key] === 0 ? "disabled" : ""}>Previous</button>
+      <button data-page="${key}" data-dir="1" ${to >= total ? "disabled" : ""}>Next</button></span>`;
+  }
+
+  // ---- cells -------------------------------------------------------------
+  function cardCell(l, withSeller) {
     const name = l.name ? `${esc(l.name)} ${esc(l.number)}` : esc(l.title);
-    const sub = l.name ? `${esc(l.set_name)} · ${esc(variant(l.subtype))}${l.grade ? " · " + esc(l.grade) : ""}` : "";
+    const bits = [l.name && `${esc(l.set_name)} · ${esc(variant(l.subtype))}`, l.grade && esc(l.grade), market(l),
+                  withSeller && l.feedback != null && `${esc(l.seller)} (${l.feedback})`].filter(Boolean);
     return `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${name}</a></div>
-      <div class="meta">${sub}${sub ? " · " : ""}${market(l)}</div>
-      ${l.name ? `<div class="meta rawtitle">${esc(l.title)}</div>` : ""}`;
+      <div class="meta">${bits.join(" · ")}</div>`;
   }
   function landedCell(l) {
     const d = l.landed || {}, keys = Object.keys(d).sort((a, b) => d[a].usd - d[b].usd);
     if (!keys.length) return "—";
-    const fmt = k => `${usd(d[k].usd)}${d[k].ship_estimated ? "*" : ""} <span class="unit">${esc(k)}</span>`;
-    return fmt(keys[0]) + (keys[1] ? `<span class="alt">${esc(keys[1])} ${usd(d[keys[1]].usd)}${d[keys[1]].ship_estimated ? "*" : ""}</span>` : "");
+    const k = keys[0];
+    return `${usd(d[k].usd)}${d[k].ship_estimated ? "*" : ""} <span class="unit">${esc(k)}</span>`;
   }
-  const valueCell = l => l.value_usd == null ? `<span class="c-warn">unknown</span><span class="src">add Collectr value</span>`
+  const valueCell = l => l.value_usd == null ? `<span class="c-warn">unknown</span>`
     : `${usd(l.value_usd)}<span class="src">${esc(l.value_source || "")}</span>`;
   function condCell(l) {
     const c = l.condition;
     const cls = !c ? "warn" : c === "NM" ? "good" : c === "LP" ? "warn" : "bad";
-    const label = { NM: "Near mint", LP: "Lightly played", MP: "Moderately played", HP: "Heavily played", DMG: "Damaged" }[c] || "Not stated";
-    return `<span class="pill ${cls}">${label}</span>${l.confidence && l.confidence !== "high" ? `<div class="meta">${esc(l.confidence)} confidence match</div>` : ""}`;
+    const label = { NM: "Near mint", LP: "Light play", MP: "Moderate play", HP: "Heavy play", DMG: "Damaged" }[c] || "Not stated";
+    return `<span class="pill ${cls}">${label}</span>`;
   }
 
-  function render(s) {
-    S = s;
+  // ---- views -------------------------------------------------------------
+  function renderHeader(s) {
     const lr = s.last_run;
-    const markets = (s.markets || []).map(m => (MP[m] || m).replace("eBay ", "")).join(", ");
-    $("#scaninfo").innerHTML = (lr ? `Last scan <b>${esc(lr.started.slice(11, 16))}</b> · every ${s.interval_min} min` : "No scan yet")
-      + ` · eBay ${esc(markets)} · 1 USD = <b>${s.fx.cad ? s.fx.cad.toFixed(4) : "?"}</b> CAD · calls ${usd(s.budget.used)} / ${usd(s.budget.limit)}`;
+    $("#scaninfo").textContent = lr ? `Last scan ${ago(lr.started)}` : "No scan yet";
     const problems = s.agents.filter(a => a.last_error_at && (!a.last_ok || a.last_error_at > a.last_ok));
     const pill = $("#syspill");
     pill.className = "syspill " + (problems.length ? "bad" : s.agents.length ? "ok" : "");
-    pill.textContent = problems.length ? `${problems.length} agent${problems.length > 1 ? "s" : ""} need attention` : s.agents.length ? "All agents OK" : "Agents not started";
-
-    if (s.example && !$(".example-banner")) {
-      $("header").insertAdjacentHTML("afterend", `<div class="example-banner">Design preview with example data. The live dashboard runs on the iMac and is reached over Tailscale.</div>`);
-    }
-
+    pill.textContent = problems.length === 1 ? problems[0].last_error.split(":")[0] : problems.length ? plural(problems.length, "issue") : "All systems OK";
     const open = s.deals.filter(d => d.decision === "open");
-    const best = open.map(d => d.gap_pct).filter(g => g != null).sort((a, b) => a - b)[0];
-    const bestDeal = open.find(d => d.gap_pct === best);
-    $("#tiles").innerHTML = [
-      ["Open deals", open.length, `${s.stats.pushes_24h} pushed in 24 h`],
-      ["Best gap now", best == null ? "—" : `${Math.round(best)}%`, bestDeal ? `${bestDeal.name} ${bestDeal.number}` : "no deals open"],
-      ["Deals this week", s.stats.deals_week, `${s.stats.bought_week} bought · ${s.stats.passed_week} passed`],
-      ["New listings 24 h", s.stats.new_24h, `across ${(s.markets || []).length} eBay sites`],
-    ].map(([k, v, m]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}<small>${esc(m)}</small></div></div>`).join("");
+    const nd = $("#n-deals"); nd.textContent = open.length || ""; nd.classList.toggle("hot", open.length > 0);
+    $("#n-leads").textContent = s.feed.filter(l => l.tier === "WATCH").length || "";
+    if (s.example && !$(".example-banner")) {
+      $("header").insertAdjacentHTML("afterend", `<div class="example-banner">Design preview with example data. The live dashboard runs on the iMac over Tailscale.</div>`);
+    }
+  }
 
-    $("#deals tbody").innerHTML = open.length ? open.map(d => `
+  function renderDeals(s) {
+    const open = s.deals.filter(d => d.decision === "open");
+    const best = open.filter(d => d.gap_pct != null).sort((a, b) => a.gap_pct - b.gap_pct)[0];
+    $("#tiles").innerHTML = [
+      ["Open deals", open.length, ""],
+      ["Best gap", best ? `${Math.round(best.gap_pct)}%` : "—", best ? `${best.name} ${best.number}` : ""],
+      ["This week", s.stats.deals_week, `${s.stats.bought_week} bought`],
+    ].map(([k, v, m]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}${m ? `<small>${esc(m)}</small>` : ""}</div></div>`).join("");
+
+    const rows = slice("deals", open);
+    $("#deals tbody").innerHTML = rows.length ? rows.map(d => `
       <tr id="alert-${d.alert_id}" data-id="${d.alert_id}">
-        <td class="c-card">${cardCell(d)}${d.kind === "seeded" ? `<div class="meta">already listed when this market was first scanned</div>` : ""}</td>
-        <td class="num c-ask" data-label="Ask">${ask(d.price, d.currency)}</td>
-        <td class="num c-landed" data-label="Landed US$">${landedCell(d)}</td>
+        <td class="c-card">${cardCell(d, true)}</td>
+        <td class="num c-landed" data-label="Landed US$">${landedCell(d)}<span class="alt">ask ${Number(d.price).toLocaleString("en-US")} ${esc(d.currency)}</span></td>
         <td class="num c-value" data-label="Value US$">${valueCell(d)}</td>
-        <td class="num c-gap">${d.tier === "LISTED" ? `<span class="tier LISTED">LISTED</span>` : gap(d.gap_pct)}</td>
+        <td class="num c-gap">${d.tier === "LISTED" ? `<span class="tier LISTED">NO VALUE</span>` : gap(d.gap_pct)}</td>
         <td class="c-cond">${condCell(d)}</td>
-        <td class="c-seller">${esc(d.seller || "")}<div class="meta">${d.feedback ?? "?"} · ${d.feedback_pct ?? "?"}% · ${ago(d.sent_at)}</div></td>
         <td class="c-acts"><div class="acts"><a class="btn primary" href="${esc(d.url)}" target="_blank" rel="noopener">Open</a><button data-act="passed">Pass</button><button data-act="bought">Bought</button></div></td>
       </tr>`).join("")
-      : `<tr><td colspan="8" class="empty">No open deals. When a target lists under your threshold it lands here and on your phone.</td></tr>`;
+      : `<tr><td colspan="6" class="empty">No open deals. When a target lists under your threshold it shows up here and on your phone.</td></tr>`;
+    pager("deals", open.length);
 
-    const tiers = ["all", "DEAL", "LISTED", "WATCH", "SEEN", "REJECT"];
-    const counts = { all: s.feed.length };
-    s.feed.forEach(l => counts[l.tier] = (counts[l.tier] || 0) + 1);
-    $("#feedtabs").innerHTML = tiers.map(t => `<button role="tab" data-tab="${t}" aria-selected="${t === feedTab}">${t === "all" ? "All" : t[0] + t.slice(1).toLowerCase()}<span class="count">${counts[t] || 0}</span></button>`).join("");
-    const rows = s.feed.filter(l => feedTab === "all" || l.tier === feedTab).slice(0, 150);
-    $("#feed tbody").innerHTML = rows.length ? rows.map(l => `
+    $("#n-log").textContent = s.log.length ? `(${s.log.length})` : "";
+    const logRows = slice("log", s.log);
+    $("#log tbody").innerHTML = logRows.length ? logRows.map(a => `<tr>
+      <td><div class="title">${a.name ? esc(a.name + " " + a.number) : esc(a.title)}</div><div class="meta">${esc((a.sent_at || "").slice(5, 16))}</div></td>
+      <td class="num">${usd(a.landed_usd)}</td><td class="num">${usd(a.value_usd)}</td>
+      <td>${esc(a.decision)}</td><td>${esc(a.outcome || "—")}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="empty">Nothing yet. Pass or Bought a deal and it moves here.</td></tr>`;
+    pager("log", s.log.length);
+  }
+
+  const FEED_TABS = [
+    ["look", "Worth a look", l => ["DEAL", "LISTED", "WATCH"].includes(l.tier)],
+    ["all", "All", () => true],
+    ["seen", "At market", l => l.tier === "SEEN"],
+    ["reject", "Rejected", l => l.tier === "REJECT"],
+  ];
+  function renderLeads(s) {
+    const tabs = FEED_TABS.map(([k, label, f]) => [k, label, s.feed.filter(f)]);
+    $("#feedtabs").innerHTML = tabs.map(([k, label, rows]) =>
+      `<button role="tab" data-tab="${k}" aria-selected="${k === feedTab}">${label}<span class="count">${rows.length}</span></button>`).join("");
+    let rows = tabs.find(t => t[0] === feedTab)[2];
+    const tcg = rows.some(l => l.marketplace === "TCGPLAYER");
+    $("#feednote").hidden = !tcg;
+    if (feedTab === "look") rows = rows.slice().sort((a, b) => (a.gap_pct ?? 0) - (b.gap_pct ?? 0));
+    const shown = slice("feed", rows);
+    $("#feed tbody").innerHTML = shown.length ? shown.map(l => `
       <tr>
-        <td>${ago(l.first_seen)}</td>
-        <td>${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div><div class="meta">${esc(variant(l.subtype))}</div><div class="meta rawtitle">${esc(l.title)}</div>`
-          : `<div><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></div>`}</td>
-        <td>${market(l)}</td>
+        <td>${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div><div class="meta">${esc(l.set_name)} · ${esc(variant(l.subtype))}</div>`
+          : `<div class="rawtitle"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></div>`}</td>
+        <td>${market(l)}<div class="meta">${ago(l.first_seen)}</div></td>
         <td class="num">${landedCell(l)}</td>
-        <td class="num">${l.tier === "REJECT" ? "—" : valueCell(l)}</td>
+        <td class="num">${l.tier === "REJECT" ? '<span class="na">—</span>' : valueCell(l)}</td>
         <td class="num">${l.tier === "REJECT" ? '<span class="na">—</span>' : gap(l.gap_pct)}</td>
-        <td><span class="tier ${esc(l.tier)}">${esc(l.tier)}</span><div class="reason">${esc(l.reason || "")}</div></td>
+        <td><span class="tier ${esc(l.tier)}">${esc(l.tier)}</span><div class="reason">${/^[+-]?\d+% vs value$/.test(l.reason || "") ? "" : esc(l.reason || "")}</div></td>
       </tr>`).join("")
-      : `<tr><td colspan="7" class="empty">${s.feed.length ? "Nothing in this tab." : "Nothing found yet. Results appear after the first scan."}</td></tr>`;
-
-    $("#targets tbody").innerHTML = s.targets.map(t => {
-      const c = s.target_counts[t.id] || {};
-      return `<tr data-id="${esc(t.id)}">
-        <td class="title">${esc(t.label)}<div class="meta">${esc(t.queries.join(" · "))}</div></td>
-        <td class="num"><input class="th" id="push-${esc(t.id)}" data-k="push_gap_pct" value="${t.push_gap_pct}" inputmode="decimal" aria-label="Push gap for ${esc(t.label)}"></td>
-        <td class="num"><input class="th" id="watch-${esc(t.id)}" data-k="watch_gap_pct" value="${t.watch_gap_pct}" inputmode="decimal" aria-label="Watch gap for ${esc(t.label)}"></td>
-        <td class="num"><input class="th" id="min-${esc(t.id)}" data-k="min_value_usd" value="${t.min_value_usd}" inputmode="decimal" aria-label="Minimum value for ${esc(t.label)}"></td>
-        <td class="num"><input class="th" id="max-${esc(t.id)}" data-k="max_price_usd" value="${t.max_price_usd}" inputmode="decimal" aria-label="Maximum landed for ${esc(t.label)}"></td>
-        <td class="num">${plural((c.DEAL || 0) + (c.LISTED || 0), "deal")}<div class="meta">${Object.values(c).reduce((a, b) => a + b, 0)} found</div></td>
-        <td><button class="pill ${t.paused ? "paused" : "active"}" data-toggle="paused">${t.paused ? "Paused" : "Active"}</button></td>
-      </tr>`;
-    }).join("");
-
-    const sel = $("#valtarget");
-    if (!sel.options.length) {
-      sel.innerHTML = s.targets.map(t => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("");
-      valTarget = s.targets[0] && s.targets[0].id;
-      loadValues();
-    }
-
-    const agents = s.agents.slice().sort((a, b) => a.agent.localeCompare(b.agent));
-    $("#agents tbody").innerHTML = agents.length ? agents.map(a => {
-      const bad = a.last_error_at && (!a.last_ok || a.last_error_at > a.last_ok);
-      const job = AGENT_JOBS[a.agent] || (a.agent.startsWith("scout:") ? `Searches ${MP[a.agent.slice(6)] || a.agent.slice(6)}` : "");
-      return `<tr><td class="title">${esc(a.agent.replace("scout:", "scout · "))}</td><td class="meta">${esc(job)}</td>
-        <td>${a.last_ok ? ago(a.last_ok) + " ago" : "never"}</td>
-        <td class="${bad ? "err" : "meta"}">${a.last_error_at ? esc(ago(a.last_error_at)) + " ago · " + esc(a.last_error) : "—"}</td>
-        <td class="meta">${esc(a.detail || "")}</td></tr>`;
-    }).join("") : `<tr><td colspan="5" class="empty">No agent has run yet.</td></tr>`;
-    $("#runs tbody").innerHTML = s.runs.length ? s.runs.map(r => `<tr><td>${esc(r.started.slice(5, 16))}</td><td class="num">${r.calls}</td>
-      <td class="num">${r.results}</td><td class="num">${r.new_listings}</td><td class="num">${r.pushes}</td>
-      <td class="${r.errors.length ? "err" : "meta"}">${esc(r.errors.slice(0, 2).join(" · ") || "ok")}</td></tr>`).join("")
-      : `<tr><td colspan="6" class="empty">No scans yet.</td></tr>`;
-
-    $("#log tbody").innerHTML = s.log.length ? s.log.map(a => `<tr><td>${esc((a.sent_at || "").slice(5, 16))}</td>
-      <td class="title">${a.name ? esc(a.name + " " + a.number) : esc(a.title)}</td><td class="num">${usd(a.landed_usd)}</td>
-      <td class="num">${usd(a.value_usd)}</td><td class="num">${gap(a.gap_pct)}</td><td>${esc(a.decision)}</td><td>${esc(a.outcome || "—")}</td></tr>`).join("")
-      : `<tr><td colspan="7" class="empty">Pass or Bought a deal and it moves here. Add what happened later so thresholds can be tuned from evidence.</td></tr>`;
-
-    focusHash();
+      : `<tr><td colspan="6" class="empty">${s.feed.length ? "Nothing here." : "Nothing found yet. Results appear after the first scan."}</td></tr>`;
+    pager("feed", rows.length);
   }
 
   async function loadValues() {
     if (!valTarget) return;
-    let rows;
-    try { rows = SAMPLE ? (SAMPLE.values[valTarget] || []) : await api(`/api/values?target=${encodeURIComponent(valTarget)}`); }
+    try { valRows = SAMPLE ? (SAMPLE.values[valTarget] || []) : await api(`/api/values?target=${encodeURIComponent(valTarget)}`); }
     catch (e) { toast(e.message); return; }
+    renderValues();
+  }
+  function renderValues() {
+    const rows = slice("values", valRows);
     $("#values tbody").innerHTML = rows.length ? rows.map(c => `<tr data-key="${esc(c.card_key)}">
       <td><div class="title">${c.tcg_url ? `<a class="cardlink" href="${esc(c.tcg_url)}" target="_blank" rel="noopener">${esc(c.name)} ${esc(c.number)}</a>` : esc(c.name + " " + c.number)}</div><div class="meta">${esc(variant(c.subtype))}</div></td>
       <td class="num">${c.market == null ? `<span class="c-warn">no sales</span>` : usd(c.market)}</td>
       <td class="num"><input class="th ov" id="ov-${esc(c.card_key)}" value="${c.override_usd ?? ""}" placeholder="—" inputmode="decimal" aria-label="Collectr value for ${esc(c.name)}"></td>
-    </tr>`).join("") : `<tr><td colspan="3" class="empty">No cards loaded yet. The catalog agent fills this on its first run.</td></tr>`;
+    </tr>`).join("") : `<tr><td colspan="3" class="empty">No cards loaded yet.</td></tr>`;
+    pager("values", valRows.length);
   }
 
-  function focusHash() {
-    document.querySelectorAll("tr.focus").forEach(r => r.classList.remove("focus"));
-    const id = (location.hash || "").slice(1);
-    if (!/^alert-\d+$/.test(id)) return;
-    const row = document.getElementById(id);
-    if (row) { row.classList.add("focus"); row.scrollIntoView({ block: "center" }); }
+  function renderSettings(s) {
+    $("#targets tbody").innerHTML = s.targets.map(t => `<tr data-id="${esc(t.id)}">
+      <td class="title">${esc(t.label)}</td>
+      <td class="num"><input class="th" id="push-${esc(t.id)}" data-k="push_gap_pct" value="${t.push_gap_pct}" inputmode="decimal" aria-label="Push gap for ${esc(t.label)}"></td>
+      <td class="num"><input class="th" id="min-${esc(t.id)}" data-k="min_value_usd" value="${t.min_value_usd}" inputmode="decimal" aria-label="Minimum value for ${esc(t.label)}"></td>
+      <td class="num"><input class="th" id="max-${esc(t.id)}" data-k="max_price_usd" value="${t.max_price_usd}" inputmode="decimal" aria-label="Maximum landed for ${esc(t.label)}"></td>
+      <td><button class="pill ${t.paused ? "paused" : "active"}" data-toggle="paused">${t.paused ? "Paused" : "Active"}</button></td>
+    </tr>`).join("");
+    $("#targets2 tbody").innerHTML = s.targets.map(t => {
+      const c = s.target_counts[t.id] || {};
+      return `<tr data-id="${esc(t.id)}"><td class="title">${esc(t.label)}</td>
+        <td class="num"><input class="th" id="watch-${esc(t.id)}" data-k="watch_gap_pct" value="${t.watch_gap_pct}" inputmode="decimal" aria-label="Watch gap for ${esc(t.label)}"></td>
+        <td class="num">${Object.values(c).reduce((a, b) => a + b, 0)}</td></tr>`;
+    }).join("");
+    $("#agents tbody").innerHTML = s.agents.length ? s.agents.slice().sort((a, b) => a.agent.localeCompare(b.agent)).map(a => {
+      const bad = a.last_error_at && (!a.last_ok || a.last_error_at > a.last_ok);
+      const [name, job] = AGENTS[a.agent] || (a.agent.startsWith("scout:") ? [`Search · ${MP[a.agent.slice(6)] || a.agent.slice(6)}`, "Finds new listings"] : [a.agent, ""]);
+      return `<tr><td><div class="title">${esc(name)}</div><div class="meta">${esc(job)}</div></td>
+        <td>${a.last_ok ? ago(a.last_ok) : "never"}</td>
+        <td class="${bad ? "err" : "meta"}">${a.last_error_at ? esc(a.last_error) : "—"}</td></tr>`;
+    }).join("") : `<tr><td colspan="3" class="empty">Nothing has run yet.</td></tr>`;
+    $("#runs tbody").innerHTML = s.runs.length ? s.runs.map(r => `<tr><td>${esc(r.started.slice(5, 16))}</td><td class="num">${r.calls}</td>
+      <td class="num">${r.results}</td><td class="num">${r.new_listings}</td><td class="num">${r.pushes}</td>
+      <td class="${r.errors.length ? "err" : "meta"}">${esc(r.errors.slice(0, 2).join(" · ") || "ok")}</td></tr>`).join("")
+      : `<tr><td colspan="6" class="empty">No scans yet.</td></tr>`;
+    const sel = $("#valtarget");
+    if (!sel.options.length) {
+      sel.innerHTML = s.targets.map(t => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("");
+      valTarget = s.targets[0] && s.targets[0].id;
+    }
+  }
+
+  function render(s) {
+    S = s;
+    renderHeader(s);
+    renderSettings(s);   // also fills the Values target picker
+    if (view === "deals") renderDeals(s);
+    if (view === "leads") renderLeads(s);
+    if (view === "values" && !valRows.length) loadValues();
+  }
+
+  // ---- routing: #deals #leads #values #settings, plus #alert-N and #system --------------
+  function route() {
+    const h = (location.hash || "").slice(1);
+    const alert = /^alert-(\d+)$/.exec(h);
+    view = alert ? "deals" : h === "system" ? "settings" : VIEWS.includes(h) ? h : "deals";
+    $$("[data-panel]").forEach(p => { p.hidden = p.dataset.panel !== view; });
+    $$("#views a").forEach(a => { if (a.dataset.view === view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    if (alert && S) {   // jump to the page that holds the tapped alert
+      const open = S.deals.filter(d => d.decision === "open");
+      const i = open.findIndex(d => String(d.alert_id) === alert[1]);
+      if (i >= 0) page.deals = Math.floor(i / PAGE.deals);
+    }
+    if (S) render(S);
+    if (alert) {
+      $$("tr.focus").forEach(r => r.classList.remove("focus"));
+      const row = document.getElementById(h);
+      if (row) { row.classList.add("focus"); row.scrollIntoView({ block: "center" }); }
+    }
+    if (h === "system") { const el = $("#system"); if (el) el.scrollIntoView(); }
   }
 
   async function load() {
-    if (SAMPLE) return render(SAMPLE);
-    try { render(await api("/api/state")); }
+    if (SAMPLE) { S = SAMPLE; return route(); }
+    try { S = await api("/api/state"); route(); }
     catch (e) { $("#scaninfo").textContent = "Can't reach the Card Radar server: " + e.message; }
   }
 
+  // ---- events --------------------------------------------------------------
   document.addEventListener("click", async e => {
+    const pg = e.target.closest("button[data-page]");
+    if (pg) {
+      const k = pg.dataset.page; page[k] += Number(pg.dataset.dir);
+      if (k === "values") renderValues(); else render(S);
+      $(`#pg-${k}`).previousElementSibling.scrollIntoView({ block: "start", behavior: "smooth" });
+      return;
+    }
     const tab = e.target.closest("button[data-tab]");
-    if (tab) { feedTab = tab.dataset.tab; render(S); return; }
+    if (tab) { feedTab = tab.dataset.tab; page.feed = 0; renderLeads(S); return; }
     const act = e.target.closest("button[data-act]");
     if (act) {
       const tr = act.closest("tr"), id = tr.dataset.id, decision = act.dataset.act;
@@ -207,7 +273,7 @@
   });
 
   document.addEventListener("change", async e => {
-    if (e.target.id === "valtarget") { valTarget = e.target.value; loadValues(); return; }
+    if (e.target.id === "valtarget") { valTarget = e.target.value; page.values = 0; loadValues(); return; }
     const inp = e.target.closest("input.th");
     if (!inp) return;
     const raw = inp.value.trim().replace(/[$,%\s]/g, "");
@@ -216,11 +282,11 @@
     try {
       if (inp.classList.contains("ov")) {
         await api("/api/overrides", { method: "POST", body: JSON.stringify({ card_key: inp.closest("tr").dataset.key, value_usd: raw === "" ? null : Number(raw) }) });
-        toast(raw === "" ? "Back to TCGplayer value" : "Collectr value saved"); loadValues();
+        toast(raw === "" ? "Back to TCGplayer value" : "Collectr value saved");
       } else {
         if (raw === "") { toast("Enter a number"); return; }
         await api(`/api/targets/${inp.closest("tr").dataset.id}`, { method: "POST", body: JSON.stringify({ [inp.dataset.k]: Number(raw) }) });
-        toast("Saved to targets.json");
+        toast("Saved");
       }
       load();
     } catch (err) { toast(err.message); }
@@ -238,7 +304,8 @@
     } catch (err) { out.textContent = err.message; }
   });
 
-  addEventListener("hashchange", focusHash);
+  addEventListener("hashchange", route);
+  route();
   load();
-  if (!SAMPLE) setInterval(() => { if (!document.querySelector("input:focus")) load(); }, 60000);
+  if (!SAMPLE) setInterval(() => { if (!document.querySelector("input:focus, textarea:focus")) load(); }, 60000);
 })();
