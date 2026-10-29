@@ -1,26 +1,48 @@
-"""Load .env and watchlist.json. Watchlist is the single source of truth for what we scan and when we alert."""
+"""Paths, .env, and the two config files. Targets and settings are the only place thresholds live."""
 import json, os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV_PATH = os.path.join(ROOT, ".env")
-WATCHLIST_PATH = os.path.join(ROOT, "watchlist.json")
-DB_PATH = os.path.join(ROOT, "radar.db")
+TARGETS_PATH = os.path.join(ROOT, "config", "targets.json")
+SETTINGS_PATH = os.path.join(ROOT, "config", "settings.json")
+
+
+def db_path():
+    return os.environ.get("RADAR_DB") or os.path.join(ROOT, "radar.db")
+
 
 def load_env():
     if os.path.exists(ENV_PATH):
-        for line in open(ENV_PATH):
+        with open(ENV_PATH) as f:
+            lines = f.read().splitlines()
+        for line in lines:
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip())
     return os.environ
 
-def load_watchlist():
-    with open(WATCHLIST_PATH) as f:
+
+def _load(path):
+    with open(path) as f:
         return json.load(f)
 
-def save_watchlist(cfg):
-    tmp = WATCHLIST_PATH + ".tmp"
+
+def _save(path, obj):
+    tmp = path + ".tmp"
     with open(tmp, "w") as f:
-        json.dump(cfg, f, indent=2)
-    os.replace(tmp, WATCHLIST_PATH)
+        json.dump(obj, f, indent=2)
+        f.write("\n")
+    os.replace(tmp, path)
+
+
+def load_targets():
+    return _load(TARGETS_PATH)["targets"]
+
+
+def save_targets(targets):
+    _save(TARGETS_PATH, {"targets": targets})
+
+
+def load_settings():
+    return _load(SETTINGS_PATH)

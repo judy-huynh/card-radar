@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""CLI. `python3 scan.py` runs one pass. `--dry` stores but does not push. `--test-text` only pushes a test."""
+"""Kept for muscle memory: same as `python3 -m radar run --force`."""
 import sys
-from radar.config import load_env
-from radar import notify, scan
-
-if __name__ == "__main__":
-    load_env()
-    if "--test-text" in sys.argv:
-        notify.push("Card radar test: notifications work."); print("test sent")
-    else:
-        scan.run(dry="--dry" in sys.argv)
+from radar.__main__ import main
+main([sys.argv[0], "run", "--force"] + sys.argv[1:])

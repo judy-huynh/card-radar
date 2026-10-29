@@ -1,0 +1,164 @@
+{
+  "targets": [
+    {
+      "id": "lc-reverse",
+      "label": "Legendary Collection \u00b7 Reverse Holo",
+      "group_id": 1374,
+      "set_name": "Legendary Collection",
+      "set_aliases": [
+        "legendary collection",
+        "legendary col",
+        "lc"
+      ],
+      "denoms": [
+        "110"
+      ],
+      "subtypes": [
+        "Reverse Holofoil"
+      ],
+      "name": null,
+      "queries": [
+        "pokemon legendary collection reverse"
+      ],
+      "push_gap_pct": 20,
+      "watch_gap_pct": 5,
+      "min_value_usd": 40,
+      "max_price_usd": 10000,
+      "paused": false,
+      "crystal_any_subtype": false
+    },
+    {
+      "id": "southern-islands",
+      "label": "Southern Islands",
+      "group_id": 648,
+      "set_name": "Southern Islands",
+      "set_aliases": [
+        "southern islands",
+        "southern island"
+      ],
+      "denoms": [
+        "18"
+      ],
+      "subtypes": [
+        "Reverse Holofoil",
+        "Normal"
+      ],
+      "name": null,
+      "queries": [
+        "pokemon southern islands"
+      ],
+      "push_gap_pct": 20,
+      "watch_gap_pct": 5,
+      "min_value_usd": 25,
+      "max_price_usd": 3000,
+      "paused": false,
+      "crystal_any_subtype": false
+    },
+    {
+      "id": "skyridge-holo",
+      "label": "Skyridge \u00b7 Holo",
+      "group_id": 1372,
+      "set_name": "Skyridge",
+      "set_aliases": [
+        "skyridge",
+        "sky ridge"
+      ],
+      "denoms": [
+        "144",
+        "32"
+      ],
+      "subtypes": [
+        "Holofoil"
+      ],
+      "name": null,
+      "queries": [
+        "pokemon skyridge holo"
+      ],
+      "push_gap_pct": 20,
+      "watch_gap_pct": 5,
+      "min_value_usd": 60,
+      "max_price_usd": 10000,
+      "paused": false,
+      "crystal_any_subtype": true
+    },
+    {
+      "id": "aquapolis-holo",
+      "label": "Aquapolis \u00b7 Holo",
+      "group_id": 1397,
+      "set_name": "Aquapolis",
+      "set_aliases": [
+        "aquapolis"
+      ],
+      "denoms": [
+        "147",
+        "32"
+      ],
+      "subtypes": [
+        "Holofoil"
+      ],
+      "name": null,
+      "queries": [
+        "pokemon aquapolis holo"
+      ],
+      "push_gap_pct": 20,
+      "watch_gap_pct": 5,
+      "min_value_usd": 50,
+      "max_price_usd": 10000,
+      "paused": false,
+      "crystal_any_subtype": true
+    },
+    {
+      "id": "dark-gengar",
+      "label": "Dark Gengar \u00b7 Neo Destiny",
+      "group_id": 1444,
+      "set_name": "Neo Destiny",
+      "set_aliases": [
+        "neo destiny",
+        "destiny"
+      ],
+      "denoms": [
+        "105"
+      ],
+      "subtypes": [
+        "1st Edition Holofoil",
+        "Unlimited Holofoil"
+      ],
+      "name": "Dark Gengar",
+      "queries": [
+        "dark gengar neo destiny"
+      ],
+      "push_gap_pct": 20,
+      "watch_gap_pct": 5,
+      "min_value_usd": 50,
+      "max_price_usd": 5000,
+      "paused": false,
+      "crystal_any_subtype": false
+    },
+    {
+      "id": "expedition-holo",
+      "label": "Expedition \u00b7 Holo",
+      "group_id": 1375,
+      "set_name": "Expedition",
+      "set_aliases": [
+        "expedition",
+        "expedition base"
+      ],
+      "denoms": [
+        "165"
+      ],
+      "subtypes": [
+        "Holofoil"
+      ],
+      "name": null,
+      "queries": [
+        "pokemon expedition holo"
+      ],
+      "push_gap_pct": 20,
+      "watch_gap_pct": 5,
+      "min_value_usd": 50,
+      "max_price_usd": 10000,
+      "paused": false,
+      "crystal_any_subtype": false
+    }
+  ]
+}

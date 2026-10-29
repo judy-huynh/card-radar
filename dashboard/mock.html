@@ -4,29 +4,72 @@
 
 <div class="wrap">
 <header>
-  <div><h1>Card Radar</h1><div class="sub" id="subtitle">Sourcing desk · WOTC-era targets</div></div>
-  <div class="sub" id="scaninfo">Loading…</div>
+  <div>
+    <h1>Card Radar</h1>
+    <div class="sub" id="subtitle">Six WOTC-era targets · eBay worldwide · values from Collectr or TCGplayer</div>
+  </div>
+  <div class="status">
+    <div class="sub" id="scaninfo">Loading…</div>
+    <a href="#system" class="syspill" id="syspill">Checking agents…</a>
+  </div>
 </header>
 
 <div class="tiles" id="tiles"></div>
 
-<h2>Live alerts · act or pass</h2>
-<div class="tbl"><table id="alerts">
-<thead><tr><th>Listing</th><th class="num">Ask</th><th class="num">Landed CA (US$)</th><th class="num">Landed NYC (US$)</th><th class="num">Collectr (US$)</th><th class="num">Gap</th><th>Condition</th><th>Seller</th><th></th></tr></thead>
-<tbody></tbody></table></div>
-<div class="note">Landed = ask + shipping + FX + estimated tax/duty. Gap = cheaper landed vs Collectr. Highlighted row is the alert you tapped in ntfy. Landed and Collectr fill in at stage 2.</div>
+<section>
+  <h2>Deals · pushed to your phone</h2>
+  <div class="tbl"><table id="deals">
+    <thead><tr><th>Card</th><th class="num">Ask</th><th class="num">Landed (US$)</th><th class="num">Value (US$)</th><th class="num">Gap</th><th>Condition</th><th>Seller</th><th></th></tr></thead>
+    <tbody></tbody></table></div>
+  <p class="note">Landed = ask + shipping + FX + sales tax + import estimate, to the cheaper of Canada or NYC. * means shipping was estimated. Value is condition-adjusted.</p>
+</section>
 
-<h2>Watchlist · thresholds you control</h2>
-<div class="tbl"><table id="watchlist">
-<thead><tr><th>Card</th><th>Search</th><th class="num">Alert when gap ≥ %</th><th class="num">Max ask (US$)</th><th>Condition</th><th class="num">Alerts · 7d</th><th>Status</th></tr></thead>
-<tbody></tbody></table></div>
-<div class="note">Edits save straight to watchlist.json. The scanner reads it every run, so changes apply at the next scan.</div>
+<section>
+  <div class="sectionhead">
+    <h2>Everything the scouts found</h2>
+    <div class="seg" id="feedtabs" role="tablist"></div>
+  </div>
+  <div class="tbl"><table id="feed">
+    <thead><tr><th>Found</th><th>Card</th><th>Market</th><th class="num">Landed (US$)</th><th class="num">Value (US$)</th><th class="num">Gap</th><th>Result</th></tr></thead>
+    <tbody></tbody></table></div>
+</section>
 
-<h2>Alert log · what you did and whether it was right</h2>
-<div class="tbl"><table id="log" class="log">
-<thead><tr><th>When</th><th>Listing</th><th class="num">Ask</th><th class="num">Gap</th><th>Decision</th><th>Outcome</th></tr></thead>
-<tbody></tbody></table></div>
+<section>
+  <h2>Targets · thresholds you control</h2>
+  <div class="tbl"><table id="targets">
+    <thead><tr><th>Target</th><th class="num">Push at gap ≥ %</th><th class="num">Watch at gap ≥ %</th><th class="num">Min value (US$)</th><th class="num">Max landed (US$)</th><th class="num">7 days</th><th>Status</th></tr></thead>
+    <tbody></tbody></table></div>
+  <p class="note">Changes save to config/targets.json and re-score open listings right away. The next scan uses them too.</p>
+</section>
+
+<section>
+  <div class="sectionhead">
+    <h2>Card values · add Collectr where you trust it more</h2>
+    <select id="valtarget" aria-label="Target"></select>
+  </div>
+  <div class="tbl"><table id="values">
+    <thead><tr><th>Card</th><th>Variant</th><th class="num">TCGplayer market</th><th class="num">Collectr value</th><th class="num">Used</th></tr></thead>
+    <tbody></tbody></table></div>
+  <p class="note">A Collectr value overrides TCGplayer for that card. Clear the box to go back. TCGplayer prices refresh daily.</p>
+</section>
+
+<section id="system">
+  <h2>System · agents</h2>
+  <div class="tbl"><table id="agents">
+    <thead><tr><th>Agent</th><th>Job</th><th>Last OK</th><th>Last problem</th><th>Detail</th></tr></thead>
+    <tbody></tbody></table></div>
+  <div class="tbl spaced"><table id="runs">
+    <thead><tr><th>Scan</th><th class="num">Searches</th><th class="num">Results</th><th class="num">New</th><th class="num">Pushes</th><th>Notes</th></tr></thead>
+    <tbody></tbody></table></div>
+</section>
+
+<section>
+  <h2>Decision log · what you did and how it turned out</h2>
+  <div class="tbl"><table id="log" class="log">
+    <thead><tr><th>Alert</th><th>Card</th><th class="num">Landed</th><th class="num">Value</th><th class="num">Gap</th><th>Decision</th><th>Outcome</th></tr></thead>
+    <tbody></tbody></table></div>
+</section>
 </div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="sample.js"></script>
 <script src="app.js"></script>

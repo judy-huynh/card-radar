@@ -52,3 +52,29 @@ input.th:hover,input.th:focus{border-color:var(--line);background:#fff}
 .toast.show{opacity:1}
 @media (max-width:600px){.tile .v{font-size:20px}}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+/* ---- v2 additions ---------------------------------------------------- */
+:root{--seen:#8a8f96; --listed:#0b57d0; --listed-bg:#e8effc; --good-bg:#e8f5ec}
+section{min-width:0}
+.status{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.syspill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;text-decoration:none;background:var(--panel);color:var(--muted)}
+.syspill.ok{color:var(--good)} .syspill.bad{background:var(--bad-bg);color:var(--bad)}
+.sectionhead{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 16px}
+.sectionhead h2{margin-bottom:10px}
+.seg{display:flex;gap:2px;background:var(--panel);border-radius:6px;padding:2px;margin-bottom:10px;flex-wrap:wrap}
+.seg button{color:var(--muted);padding:4px 10px}
+.seg button[aria-selected="true"]{background:var(--bg);color:var(--fg);box-shadow:0 0 0 1px var(--line)}
+.seg .count{font-weight:400;color:var(--muted);margin-left:4px}
+select{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg);margin-bottom:10px}
+.tier{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:999px}
+.tier.DEAL{background:var(--good-bg);color:var(--good)} .tier.LISTED{background:var(--listed-bg);color:var(--listed)}
+.tier.WATCH{background:var(--warn-bg);color:var(--warn)} .tier.SEEN{color:var(--seen);padding-left:0}
+.tier.REJECT{color:var(--bad);padding-left:0}
+.reason{color:var(--muted);font-size:12px;margin-top:2px}
+.src{display:block;color:var(--muted);font-size:11px;font-weight:400}
+.alt{display:block;color:var(--muted);font-size:12px}
+.spaced{margin-top:12px}
+td a.cardlink{color:inherit;text-decoration:none} td a.cardlink:hover{text-decoration:underline}
+tr.decided td{opacity:.45}
+.err{color:var(--bad)}
+.example-banner{background:var(--warn-bg);color:var(--warn);font-size:13px;padding:8px 12px;border-radius:6px;margin-top:14px}
