@@ -6,6 +6,7 @@ from .config import load_env, load_settings, load_targets
 from .decide import PUSH_TIERS, RANK
 from .scouts import ScoutError
 from .scouts.ebay import EbayScout
+from .scouts.tcgplayer import TcgplayerScout
 
 
 def _hours_since(ts):
@@ -49,13 +50,16 @@ def cycle(con=None, scouts=None, force=False, dry=False, log=print):
         cid, secret = env.get("EBAY_CLIENT_ID"), env.get("EBAY_CLIENT_SECRET")
         scouts = [EbayScout(cid, secret, settings)] if cid and secret else []
         run["no_keys"] = not scouts
+        if settings.get("tcgplayer", {}).get("enabled", True):
+            scouts.append(TcgplayerScout(con))
 
     # ---- 1. fetch: every job, storing shipping quotes per destination --------------------------
     found, scopes_of, ran_scopes = {}, {}, set()
     budget = settings["ebay"]["daily_call_budget"]
     for scout in scouts:
         jobs = scout.plan(targets)
-        room = budget - db.calls_today(con, scout.name)
+        metered = getattr(scout, "counts_against_budget", lambda: True)()
+        room = budget - db.calls_today(con, scout.name) if metered else len(jobs)
         if len(jobs) > room:
             run["errors"].append(f"{scout.name}: budget allows {max(room, 0)} of {len(jobs)} searches")
             jobs = jobs[:max(room, 0)]
@@ -63,7 +67,8 @@ def cycle(con=None, scouts=None, force=False, dry=False, log=print):
             run["jobs"] += 1
             try:
                 items = scout.run(job)
-                db.count_call(con, scout.name); run["calls"] += 1
+                if metered:
+                    db.count_call(con, scout.name); run["calls"] += 1
             except ScoutError as e:
                 run["failed_jobs"] += 1; run["errors"].append(str(e)); run.setdefault("first_error", str(e))
                 db.agent_error(con, f"scout:{job.marketplace}", e)
@@ -105,6 +110,9 @@ def cycle(con=None, scouts=None, force=False, dry=False, log=print):
                 _record_alert(con, item_id, kind="seeded", pushed=0)
             else:
                 pending.append((item_id, kind))
+    for scout in scouts:
+        if hasattr(scout, "finalize"):
+            scout.finalize(con, found)
     for scope in ran_scopes - seeded_scopes:   # an empty first search still counts: later finds are genuinely new
         con.execute("INSERT OR IGNORE INTO scopes(scope, seeded_at) VALUES(?,?)", (scope, db.now()))
     con.commit()

@@ -8,10 +8,10 @@
   const ask = (v, cur) => v == null ? "—" : `${Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 })} <span class="src">${esc(cur)}</span>`;
   const gapCls = g => g == null ? "" : g <= -20 ? "c-good" : g <= -5 ? "c-warn" : "";
   const gap = g => g == null ? "—" : `<span class="gap ${gapCls(g)}">${g > 0 ? "+" : ""}${Math.round(g)}%</span>`;
-  const MP_COUNTRY = { EBAY_US: "US", EBAY_CA: "CA", EBAY_GB: "GB", EBAY_AU: "AU", EBAY_DE: "DE" };
+  const MP_COUNTRY = { TCGPLAYER: "US", EBAY_US: "US", EBAY_CA: "CA", EBAY_GB: "GB", EBAY_AU: "AU", EBAY_DE: "DE" };
   const market = l => `${esc(MP[l.marketplace] || l.marketplace)}${l.item_country && l.item_country !== MP_COUNTRY[l.marketplace] ? ` · ships from ${esc(l.item_country)}` : ""}`;
   const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
-  const MP = { EBAY_US: "eBay US", EBAY_CA: "eBay CA", EBAY_GB: "eBay UK", EBAY_AU: "eBay AU", EBAY_DE: "eBay DE" };
+  const MP = { TCGPLAYER: "TCGplayer", EBAY_US: "eBay US", EBAY_CA: "eBay CA", EBAY_GB: "eBay UK", EBAY_AU: "eBay AU", EBAY_DE: "eBay DE" };
   const AGENT_JOBS = {
     catalog: "Pulls every target card and its TCGplayer price, daily",
     fx: "Exchange rates, daily",
@@ -224,6 +224,18 @@
       }
       load();
     } catch (err) { toast(err.message); }
+  });
+
+  $("#bulksave").addEventListener("click", async () => {
+    const text = $("#bulktext").value, out = $("#bulkresult");
+    if (!text.trim()) { out.textContent = "Paste at least one line."; return; }
+    if (SAMPLE) { out.textContent = "Saved (example)."; return; }
+    try {
+      const r = await api("/api/overrides/bulk", { method: "POST", body: JSON.stringify({ target_id: valTarget, text }) });
+      out.innerHTML = `Saved ${r.saved}.` + (r.unmatched.length ? ` Not saved: ${r.unmatched.map(u => `<b>${esc(u.line)}</b> (${esc(u.why)})`).join("; ")}` : "");
+      if (!r.unmatched.length) $("#bulktext").value = "";
+      loadValues(); load();
+    } catch (err) { out.textContent = err.message; }
   });
 
   addEventListener("hashchange", focusHash);

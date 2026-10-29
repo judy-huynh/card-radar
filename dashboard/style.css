@@ -111,3 +111,9 @@ th.col-card{width:34%} th.col-found{width:64px}
   #deals tr.focus td:first-child{box-shadow:none}
   #deals .empty{grid-column:1/-1}
 }
+
+.bulk{margin-top:12px;border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.bulk summary{cursor:pointer;font-weight:600;font-size:13px}
+.bulk textarea{display:block;width:100%;font:13px/1.5 ui-monospace,Menlo,monospace;padding:8px;border:1px solid var(--line);border-radius:4px;margin-top:8px;background:var(--bg);color:var(--fg)}
+.bulkrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:8px}
+.bulkrow .note{margin:0}

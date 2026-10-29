@@ -50,6 +50,9 @@ class Decide(unittest.TestCase):
         self.assertEqual(decide(dict(L, feedback=3), match_stub(), 200, 100, T, S)[0], "REJECT")
         self.assertEqual(decide(L, match_stub(card=dict(match_stub()["card"], target_id=None)), 200, 100, T, S)[0], "REJECT")
 
+    def test_tcgplayer_lows_never_push_by_default(self):
+        self.assertEqual(decide(dict(L, source="tcgplayer", feedback=None, feedback_pct=None), match_stub(), 300, 100, T, S)[0], "WATCH")
+
     def test_unvalued_target_is_listed(self):
         self.assertEqual(decide(L, match_stub(), None, 3000, T, S)[0], "LISTED")
 

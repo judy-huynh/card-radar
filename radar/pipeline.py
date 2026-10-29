@@ -10,6 +10,11 @@ def cards_for(con, group_id):
 
 def evaluate(con, listing, target, cards, rates, settings):
     m = match.match(listing["title"], listing.get("condition_raw"), target, cards)
+    pinned = listing.get("pinned_card_key")
+    if pinned:   # the source already knows the exact card (TCGplayer): trust it over title parsing
+        card = next((c for c in cards if c["card_key"] == pinned), None)
+        if card:
+            m.update(card=card, card_key=pinned, confidence="high", reason=None)
     base, source = value.base_value(con, m["card"])
     val = value.adjusted(base, m["condition"], settings["condition_multipliers"])
     quotes = db.rows(con, "SELECT * FROM quotes WHERE item_id=?", (listing["item_id"],))

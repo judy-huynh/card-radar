@@ -1,20 +1,67 @@
 {
   "scan_interval_min": 20,
   "destinations": {
-    "CA":  {"label": "Canada", "country": "CA", "postal": "M5V 2T6", "tax_pct": 13.0, "intl_extra_pct": 3.0,
-            "default_ship_usd": {"domestic": 8, "international": 25}},
-    "NYC": {"label": "New York", "country": "US", "postal": "10001", "tax_pct": 8.875, "intl_extra_pct": 10.0,
-            "default_ship_usd": {"domestic": 5, "international": 25}}
+    "CA": {
+      "label": "Ontario, Canada",
+      "country": "CA",
+      "postal": "M5V 2T6",
+      "tax_pct": 13.0,
+      "intl_extra_pct": 3.0,
+      "default_ship_usd": {
+        "domestic": 8,
+        "international": 25
+      }
+    },
+    "NYC": {
+      "label": "New York City",
+      "country": "US",
+      "postal": "10001",
+      "tax_pct": 8.875,
+      "intl_extra_pct": 10.0,
+      "default_ship_usd": {
+        "domestic": 5,
+        "international": 25
+      }
+    }
   },
   "ebay": {
     "daily_call_budget": 5000,
     "limit": 200,
     "marketplaces": [
-      {"id": "EBAY_US", "dests": ["NYC", "CA"], "category_ids": "183454"},
-      {"id": "EBAY_CA", "dests": ["CA"], "category_ids": "183454"},
-      {"id": "EBAY_GB", "dests": ["NYC", "CA"]},
-      {"id": "EBAY_AU", "dests": ["NYC"]},
-      {"id": "EBAY_DE", "dests": ["NYC"]}
+      {
+        "id": "EBAY_US",
+        "dests": [
+          "NYC",
+          "CA"
+        ],
+        "category_ids": "183454"
+      },
+      {
+        "id": "EBAY_CA",
+        "dests": [
+          "CA"
+        ],
+        "category_ids": "183454"
+      },
+      {
+        "id": "EBAY_GB",
+        "dests": [
+          "NYC",
+          "CA"
+        ]
+      },
+      {
+        "id": "EBAY_AU",
+        "dests": [
+          "NYC"
+        ]
+      },
+      {
+        "id": "EBAY_DE",
+        "dests": [
+          "NYC"
+        ]
+      }
     ]
   },
   "decide": {
@@ -23,9 +70,29 @@
     "push_unvalued": true,
     "push_graded": false,
     "push_auctions": false,
-    "big_deal_gap_pct": 35
+    "big_deal_gap_pct": 35,
+    "push_tcgplayer_lows": false
   },
-  "condition_multipliers": {"NM": 1.0, "LP": 0.8, "MP": 0.6, "HP": 0.4, "DMG": 0.25, "unknown": 0.85},
-  "notify": {"max_pushes_per_hour": 10, "digest_hour": 9},
-  "watchdog": {"stale_values_h": 72, "stale_fx_h": 72, "zero_result_runs": 3, "budget_warn_pct": 80, "cooldown_h": 6}
+  "condition_multipliers": {
+    "NM": 1.0,
+    "LP": 0.8,
+    "MP": 0.6,
+    "HP": 0.4,
+    "DMG": 0.25,
+    "unknown": 0.85
+  },
+  "notify": {
+    "max_pushes_per_hour": 10,
+    "digest_hour": 9
+  },
+  "watchdog": {
+    "stale_values_h": 72,
+    "stale_fx_h": 72,
+    "zero_result_runs": 3,
+    "budget_warn_pct": 80,
+    "cooldown_h": 6
+  },
+  "tcgplayer": {
+    "enabled": true
+  }
 }

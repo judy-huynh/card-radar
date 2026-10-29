@@ -33,6 +33,8 @@ def decide(listing, m, value, landed_usd, target, settings):
         cap = ("WATCH", "unsure match: " + (m["reason"] or "check the listing"))
     elif m["grade"] and not rules["push_graded"]:
         cap = ("WATCH", f"graded {m['grade']}: compare to graded value yourself")
+    elif listing.get("source") == "tcgplayer" and not rules.get("push_tcgplayer_lows"):
+        cap = ("WATCH", "cheapest TCGplayer copy, condition not shown: usually played, check before buying")
     elif "AUCTION" in (listing.get("buying") or "") and "FIXED_PRICE" not in (listing.get("buying") or "") and not rules["push_auctions"]:
         cap = ("WATCH", "auction: current bid, not final price")
 

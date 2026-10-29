@@ -10,7 +10,7 @@ Everything it sees is on a dashboard reached over Tailscale. It never buys anyth
 ## How a listing becomes a push
 
 ```
-Scouts (eBay US·CA·UK·AU·DE, newest first, ship-to CA / NYC)
+Scouts (eBay US·CA·UK·AU·DE newest first, ship-to Ontario / NYC; TCGplayer lowest listing daily)
   -> Matcher   title -> exact card, variant, grade, condition, red flags, confidence
   -> Valuer    Collectr value if you entered one, else TCGplayer market; condition-adjusted
   -> Landed    ask + shipping + FX + tax + import estimate, per destination
@@ -53,6 +53,7 @@ After changing the dashboard: `python3 tools/make_sample.py && python3 tools/bui
 - `POST /api/alerts/<id>/decision` `{"decision": "passed|bought|open", "outcome": "..."}`
 - `POST /api/targets/<id>` any of `push_gap_pct, watch_gap_pct, min_value_usd, max_price_usd, paused`
 - `POST /api/overrides` `{"card_key": "...", "value_usd": 123 | null}` (Collectr value)
+- `POST /api/overrides/bulk` `{"target_id": "...", "text": "H14 214.50\n6 1st 1000"}` (pasted Collectr values)
 
 ## Keep the repo safe to be public
 

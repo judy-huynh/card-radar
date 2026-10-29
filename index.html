@@ -56,6 +56,12 @@
     <thead><tr><th class="col-card">Card</th><th class="num">TCGplayer market</th><th class="num">Collectr value</th></tr></thead>
     <tbody></tbody></table></div>
   <p class="note">A Collectr value, when filled in, is the value alerts use for that card. Clear the box to go back to TCGplayer. TCGplayer prices refresh daily.</p>
+  <details class="bulk" id="bulk">
+    <summary>Paste several Collectr values at once</summary>
+    <p class="note">One card per line: card number, then the Collectr value. Add 1st, unlimited or reverse when a number has more than one version.</p>
+    <textarea id="bulktext" rows="6" placeholder="H14 214.50&#10;149/147 520&#10;6 1st 1000"></textarea>
+    <div class="bulkrow"><button class="primary" id="bulksave" type="button">Save values for this target</button><span class="note" id="bulkresult"></span></div>
+  </details>
 </section>
 
 <section id="system">

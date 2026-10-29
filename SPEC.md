@@ -55,13 +55,25 @@ the run itself honours `scan_interval_min`).
 
 ## Markets
 
-Global eBay through one official API (Browse): US, Canada, UK, Australia, Germany, each searched with a ship-to
-destination so only listings that can reach Canada or NYC appear. Budget: eBay's default Browse limit
-(5,000 calls/day) is enforced by the run; the plan is targets × marketplace-destination pairs per cycle.
+| Market | How we watch it | Pushes? |
+|---|---|---|
+| eBay US, CA, UK, AU, DE | Browse API, newest first, ship-to Ontario and NYC | yes |
+| TCGplayer | lowest current listing per card, from the daily tcgcsv feed (no TCGplayer API needed) | no: dashboard leads only, because the cheapest copy is usually played |
 
-Not automated, and why: TCGplayer (API closed to new developers), Cardmarket (API for registered sellers only),
-Facebook Marketplace / Kijiji / Mercari (no API; scraping breaks their terms). Collectr (no API) is a manual
-value override on the dashboard. Each can become a scout later behind the same interface if access appears.
+Researched 2026-10-28 and not automated:
+- **TCGplayer listings**: API closed to new developers. Covered indirectly by the lowest-price feed above.
+- **Collectr marketplace**: shows eBay + TCGplayer listings, which we already cover.
+- **Facebook Marketplace, Kijiji, Mercari, Instagram, Discord groups**: no API; scraping breaks their terms.
+- **Whatnot**: live-stream auctions, nothing to poll.
+- **Fanatics Collect / PWCC, Goldin, Heritage**: high-end graded auctions; candidates if graded alerts are switched on.
+- **Canadian Shopify card shops** (e.g. Face to Face, Top Shelf): public search works, but none stocked these sets when checked.
+- **Reddit r/pkmntcgtrades**: possible later with a free Reddit API key; prices are in post bodies, so alerts would be "listed", not valued.
+
+## Values
+
+Collectr is the value of record wherever Ben has entered it (one card at a time, or pasted in bulk on the dashboard).
+TCGplayer market fills every card without one. Collectr's terms forbid crawling, scraping or caching its content and
+reverse-engineering its app, and it has no public API, so its numbers are never pulled automatically.
 
 ## Done criteria
 
@@ -73,8 +85,11 @@ value override on the dashboard. Each can become a scout later behind the same i
 6. Killing the eBay keys or the price feed produces a system push within one cycle, not silence.
 7. `python3 -m unittest` passes offline.
 
+## Decisions
+
+- 2026-10-28: destinations are Ontario (HST 13%) and New York City (8.875%).
+- 2026-10-28: Collectr values are preferred; entered by hand or pasted, never scraped (see Values).
+
 ## Open decisions (owner: Judy/Ben)
 
-- Canadian province for tax (default Ontario HST 13%).
 - Whether graded cards should alert (needs graded values; Collectr has them, TCGplayer does not).
-- Whether to automate Collectr values (no API; would mean using their private app endpoints, against their terms).

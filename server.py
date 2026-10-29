@@ -4,7 +4,7 @@ It has no login: reach it over Tailscale only, never expose it to the public int
 import json, os, sys, time
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
-from radar import db, fx, pipeline
+from radar import db, fx, overrides, pipeline
 from radar.config import ROOT, load_env, load_settings, load_targets, save_targets
 
 DASH = os.path.join(ROOT, "dashboard")
@@ -132,6 +132,16 @@ class Handler(SimpleHTTPRequestHandler):
             save_targets(targets)
             rescore(con, "target_id=?", (t["id"],))
             return self.send_json({"ok": True, "target": t})
+
+        if parts == ["api", "overrides", "bulk"]:
+            tid = body.get("target_id")
+            if not any(t["id"] == tid for t in load_targets()):
+                return self.send_json({"error": "no such target"}, 404)
+            matches, unmatched = overrides.apply(con, tid, body.get("text", ""))
+            for key in {k for k, _, _ in matches}:
+                rescore(con, "card_key=?", (key,))
+            return self.send_json({"ok": True, "saved": len({line for _, _, line in matches}),
+                                   "unmatched": [{"line": l, "why": w} for l, w in unmatched]})
 
         if parts == ["api", "overrides"]:
             key, v = body.get("card_key"), body.get("value_usd")
