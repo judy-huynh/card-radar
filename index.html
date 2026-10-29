@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Card Radar</title>
+<link rel="stylesheet" href="dashboard/style.css">
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div><h1>Card Radar</h1><div class="sub" id="subtitle">Sourcing desk · WOTC-era targets · <b>design preview with example data</b></div></div>
+  <div class="sub" id="scaninfo">Loading…</div>
+</header>
+
+<div class="tiles" id="tiles"></div>
+
+<h2>Live alerts · act or pass</h2>
+<div class="tbl"><table id="alerts">
+<thead><tr><th>Listing</th><th class="num">Ask</th><th class="num">Landed CA (US$)</th><th class="num">Landed NYC (US$)</th><th class="num">Collectr (US$)</th><th class="num">Gap</th><th>Condition</th><th>Seller</th><th></th></tr></thead>
+<tbody></tbody></table></div>
+<div class="note">Landed = ask + shipping + FX + estimated tax/duty. Gap = cheaper landed vs Collectr. Highlighted row is the alert you tapped in ntfy. Landed and Collectr fill in at stage 2.</div>
+
+<h2>Watchlist · thresholds you control</h2>
+<div class="tbl"><table id="watchlist">
+<thead><tr><th>Card</th><th>Search</th><th class="num">Alert when gap ≥ %</th><th class="num">Max ask (US$)</th><th>Condition</th><th class="num">Alerts · 7d</th><th>Status</th></tr></thead>
+<tbody></tbody></table></div>
+<div class="note">Edits save straight to watchlist.json. The scanner reads it every run, so changes apply at the next scan.</div>
+
+<h2>Alert log · what you did and whether it was right</h2>
+<div class="tbl"><table id="log" class="log">
+<thead><tr><th>When</th><th>Listing</th><th class="num">Ask</th><th class="num">Gap</th><th>Decision</th><th>Outcome</th></tr></thead>
+<tbody></tbody></table></div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="dashboard/sample.js"></script>
+<script src="dashboard/app.js"></script>
+</body>
+</html>
