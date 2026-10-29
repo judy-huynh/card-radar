@@ -46,3 +46,7 @@ def save_targets(targets):
 
 def load_settings():
     return _load(SETTINGS_PATH)
+
+
+def save_settings(settings):
+    _save(SETTINGS_PATH, settings)

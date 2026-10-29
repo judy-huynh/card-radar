@@ -5,6 +5,8 @@ from radar.landed import landed
 
 RATES = {"USD": 1.0, "CAD": 1.4, "GBP": 0.75, "EUR": 0.9, "AUD": 1.42, "JPY": 158}
 S = load_settings()
+S["decide"]["push_every_listing"] = False   # tier rules first; the every-listing switch is tested on its own
+EVERY = dict(S, decide=dict(S["decide"], push_every_listing=True))
 
 
 class Landed(unittest.TestCase):
@@ -58,6 +60,14 @@ class Decide(unittest.TestCase):
 
     def test_cheap_cards_are_not_pushed(self):
         self.assertEqual(decide(L, match_stub(), 30, 10, T, S)[0], "SEEN")
+
+    def test_every_listing_pushes_real_targets_only(self):
+        self.assertEqual(decide(L, match_stub(), 200, 150, T, EVERY)[0], "DEAL")
+        self.assertEqual(decide(L, match_stub(), 200, 210, T, EVERY), ("LISTED", "+5% vs value"))
+        self.assertEqual(decide(L, match_stub(grade="PSA 9"), 200, 100, T, EVERY)[0], "LISTED")
+        self.assertEqual(decide(L, match_stub(), 30, 10, T, EVERY)[0], "LISTED")
+        self.assertEqual(decide(L, match_stub(flags=["lot"]), 200, 100, T, EVERY)[0], "REJECT")
+        self.assertEqual(decide(dict(L, source="tcgplayer", feedback=None, feedback_pct=None), match_stub(), 300, 100, T, EVERY)[0], "WATCH")
 
 
 if __name__ == "__main__":

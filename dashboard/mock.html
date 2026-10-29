@@ -17,7 +17,7 @@
 
 <main>
   <section data-panel="deals">
-    <p class="lede">Cards under your threshold right now. Each one was pushed to your phone.</p>
+    <p class="lede" id="dealslede">Everything pushed to your phone that you haven't passed on or bought yet.</p>
     <div class="tiles" id="tiles"></div>
     <div class="tbl"><table id="deals">
       <thead><tr><th class="col-card">Card</th><th class="num">Landed (US$)</th><th class="num">Value (US$)</th><th class="num">Gap</th><th>Condition</th><th></th></tr></thead>
@@ -62,6 +62,12 @@
   </section>
 
   <section data-panel="settings" hidden>
+    <h2>What buzzes Ben's phone</h2>
+    <div class="seg" id="pushmode" role="tablist">
+      <button role="tab" data-push="1">Every new listing</button>
+      <button role="tab" data-push="0">Deals only</button>
+    </div>
+    <p class="note" id="pushnote"></p>
     <h2>Alert thresholds</h2>
     <div class="tbl"><table id="targets">
       <thead><tr><th class="col-card">Target</th><th class="num">Push at gap ≥ %</th><th class="num">Min value</th><th class="num">Max landed</th><th>Status</th></tr></thead>

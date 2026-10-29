@@ -71,7 +71,8 @@
     "push_graded": false,
     "push_auctions": false,
     "big_deal_gap_pct": 35,
-    "push_tcgplayer_lows": false
+    "push_tcgplayer_lows": false,
+    "push_every_listing": true
   },
   "condition_multipliers": {
     "NM": 1.0,

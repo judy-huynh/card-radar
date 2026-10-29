@@ -1,7 +1,8 @@
 """Decider agent. One listing -> tier + human-readable reason. Order of checks = order of importance.
 
 DEAL    push: confident raw match, clean seller, landed at least push_gap_pct under value
-LISTED  push: confident target match with no market value anywhere (thin high-end card)
+LISTED  push: confident target match with no market value anywhere (thin high-end card), or, with
+        push_every_listing on, any genuine target listing that isn't a DEAL (the reason keeps the gap)
 WATCH   dashboard: close to value, or a good price we can't fully trust (low confidence, auction, graded)
 SEEN    dashboard feed: a real target listing at or above market
 REJECT  dashboard feed: not what we want, with the reason
@@ -11,6 +12,16 @@ PUSH_TIERS = ("DEAL", "LISTED")
 
 
 def decide(listing, m, value, landed_usd, target, settings):
+    tier, reason = _tier(listing, m, value, landed_usd, target, settings)
+    # Judy 2026-10-28: Ben hears about every listing of the six cards, not just deals. Junk (REJECT) and
+    # TCGplayer's daily cheapest-copy feed (not a new listing) still never push.
+    if (settings["decide"].get("push_every_listing") and tier in ("SEEN", "WATCH")
+            and listing.get("source") != "tcgplayer"):
+        return "LISTED", reason
+    return tier, reason
+
+
+def _tier(listing, m, value, landed_usd, target, settings):
     rules = settings["decide"]
     if m["flags"]:
         return "REJECT", " · ".join(m["flags"])

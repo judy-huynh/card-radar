@@ -37,7 +37,12 @@ def deal_message(l, card, kind):
     dests = sorted(landed.items(), key=lambda kv: kv[1]["usd"])
     landed_txt = " · ".join(f"{k} {money(v['usd'])}{'*' if v['ship_estimated'] else ''}" for k, v in dests)
     variant = card["subtype"].replace("Holofoil", "Holo") if card else ""
-    head = f"DEAL {l['gap_pct']:.0f}%" if l["tier"] == "DEAL" and l["gap_pct"] is not None else "LISTED · value unknown"
+    if l["gap_pct"] is None:
+        head = "LISTED · value unknown"
+    elif l["tier"] == "DEAL":
+        head = f"DEAL {l['gap_pct']:.0f}%"
+    else:
+        head = f"LISTED {l['gap_pct']:+.0f}% vs value"
     if kind == "price_drop":
         head = "PRICE DROP · " + head
     title = f"{head} · {card['name']} {card['number']}" if card else head

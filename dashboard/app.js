@@ -103,7 +103,7 @@
     const open = s.deals.filter(d => d.decision === "open");
     const best = open.filter(d => d.gap_pct != null).sort((a, b) => a.gap_pct - b.gap_pct)[0];
     $("#tiles").innerHTML = [
-      ["Open deals", open.length, ""],
+      ["To review", open.length, `${open.filter(d => d.tier === "DEAL").length} under threshold`],
       ["Best gap", best ? `${Math.round(best.gap_pct)}%` : "—", best ? `${best.name} ${best.number}` : ""],
       ["This week", s.stats.deals_week, `${s.stats.bought_week} bought`],
     ].map(([k, v, m]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}${m ? `<small>${esc(m)}</small>` : ""}</div></div>`).join("");
@@ -114,11 +114,11 @@
         <td class="c-card">${cardCell(d, true)}</td>
         <td class="num c-landed" data-label="Landed US$">${landedCell(d)}<span class="alt">ask ${Number(d.price).toLocaleString("en-US")} ${esc(d.currency)}</span></td>
         <td class="num c-value" data-label="Value US$">${valueCell(d)}</td>
-        <td class="num c-gap">${d.tier === "LISTED" ? `<span class="tier LISTED">NO VALUE</span>` : gap(d.gap_pct)}</td>
+        <td class="num c-gap">${d.gap_pct == null ? `<span class="tier LISTED">NO VALUE</span>` : gap(d.gap_pct)}</td>
         <td class="c-cond">${condCell(d)}</td>
         <td class="c-acts"><div class="acts"><a class="btn primary" href="${esc(d.url)}" target="_blank" rel="noopener">Open</a><button data-act="passed">Pass</button><button data-act="bought">Bought</button></div></td>
       </tr>`).join("")
-      : `<tr><td colspan="6" class="empty">No open deals. When a target lists under your threshold it shows up here and on your phone.</td></tr>`;
+      : `<tr><td colspan="6" class="empty">Nothing to review. New listings of your six cards show up here and on your phone.</td></tr>`;
     pager("deals", open.length);
 
     $("#n-log").textContent = s.log.length ? `(${s.log.length})` : "";
@@ -177,6 +177,11 @@
   }
 
   function renderSettings(s) {
+    const every = !!s.push_every_listing;
+    document.querySelectorAll("#pushmode button").forEach(b => b.setAttribute("aria-selected", String((b.dataset.push === "1") === every)));
+    $("#pushnote").textContent = every
+      ? "Every new listing of the six cards pushes, whatever the price. Deals are marked DEAL. Lots, fakes, Japanese copies and other cards never push."
+      : "Only listings under the push gap below, or with no known value, push. Everything else waits in Leads.";
     $("#targets tbody").innerHTML = s.targets.map(t => `<tr data-id="${esc(t.id)}">
       <td class="title">${esc(t.label)}</td>
       <td class="num"><input class="th" id="push-${esc(t.id)}" data-k="push_gap_pct" value="${t.push_gap_pct}" inputmode="decimal" aria-label="Push gap for ${esc(t.label)}"></td>
@@ -260,6 +265,14 @@
       const tr = act.closest("tr"), id = tr.dataset.id, decision = act.dataset.act;
       if (SAMPLE) { tr.classList.add("decided"); toast(decision === "bought" ? "Marked bought (example)" : "Passed (example)"); return; }
       try { await api(`/api/alerts/${id}/decision`, { method: "POST", body: JSON.stringify({ decision }) }); toast(decision === "bought" ? "Marked bought" : "Passed"); load(); }
+      catch (err) { toast(err.message); }
+      return;
+    }
+    const pm = e.target.closest("#pushmode button");
+    if (pm) {
+      const on = pm.dataset.push === "1";
+      if (SAMPLE) { toast("Saved (example)"); return; }
+      try { await api("/api/settings/push_every_listing", { method: "POST", body: JSON.stringify({ on }) }); toast(on ? "Every listing will push" : "Deals only"); load(); }
       catch (err) { toast(err.message); }
       return;
     }

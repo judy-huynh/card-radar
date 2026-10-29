@@ -5,7 +5,7 @@ import json, os, sys, time
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 from radar import db, fx, overrides, pipeline
-from radar.config import ROOT, load_env, load_settings, load_targets, save_targets
+from radar.config import ROOT, load_env, load_settings, load_targets, save_settings, save_targets
 
 DASH = os.path.join(ROOT, "dashboard")
 TARGET_FIELDS = {"push_gap_pct": float, "watch_gap_pct": float, "min_value_usd": float, "max_price_usd": float, "paused": bool}
@@ -31,7 +31,7 @@ def state(con):
     deals = _decode(db.rows(con, f"""SELECT a.id AS alert_id, a.kind, a.pushed, a.sent_at, a.decision, {LISTING_COLS}
         FROM alerts a JOIN listings l USING(item_id) LEFT JOIN cards c ON c.card_key = l.card_key
         WHERE a.decision='open' AND a.id IN (SELECT MAX(id) FROM alerts GROUP BY item_id)
-          AND l.tier IN ('DEAL','LISTED') ORDER BY a.sent_at DESC LIMIT 60"""))
+          AND l.tier IN ('DEAL','LISTED') ORDER BY a.sent_at DESC LIMIT 300"""))
     feed = _decode(db.rows(con, f"""SELECT {LISTING_COLS} FROM listings l LEFT JOIN cards c ON c.card_key = l.card_key
         ORDER BY l.first_seen DESC LIMIT 250"""))
     log = db.rows(con, """SELECT a.id AS alert_id, a.sent_at, a.decision, a.decided_at, a.outcome, a.gap_pct, a.landed_usd,
@@ -54,6 +54,7 @@ def state(con):
         "log": log, "stats": stats, "agents": db.rows(con, "SELECT * FROM agents ORDER BY agent"),
         "runs": [dict(r, errors=json.loads(r["errors"] or "[]")) for r in db.rows(con, "SELECT * FROM runs ORDER BY id DESC LIMIT 12")],
         "last_run": last, "interval_min": settings["scan_interval_min"],
+        "push_every_listing": bool(settings["decide"].get("push_every_listing")),
         "fx": {"cad": rates and rates.get("CAD"), "at": fx_at},
         "budget": {"used": db.calls_today(con, "ebay"), "limit": settings["ebay"]["daily_call_budget"]},
         "markets": [m["id"] for m in settings["ebay"]["marketplaces"]],
@@ -132,6 +133,15 @@ class Handler(SimpleHTTPRequestHandler):
             save_targets(targets)
             rescore(con, "target_id=?", (t["id"],))
             return self.send_json({"ok": True, "target": t})
+
+        if parts == ["api", "settings", "push_every_listing"]:
+            if not isinstance(body.get("on"), bool):
+                return self.send_json({"error": "on must be true or false"}, 400)
+            settings = load_settings()
+            settings["decide"]["push_every_listing"] = body["on"]
+            save_settings(settings)
+            rescore(con, "source != 'tcgplayer'")
+            return self.send_json({"ok": True})
 
         if parts == ["api", "overrides", "bulk"]:
             tid = body.get("target_id")

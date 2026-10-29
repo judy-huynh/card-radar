@@ -3,7 +3,8 @@
 ## End goal
 
 Ben never searches for these cards by hand again. When one of the six targets is listed for sale anywhere we can see,
-at a price worth acting on, Ben's phone buzzes (ntfy) with:
+Ben's phone buzzes (ntfy). By default every new listing pushes, whatever the price (Judy, 2026-10-28); a dashboard
+switch narrows it to deals only. Each push carries:
 
 - **what** it is, matched to an exact card: set, name, number, variant (holo / reverse holo / 1st edition)
 - **what it costs landed**: ask + shipping + FX + tax/duty estimate, to Canada and to NYC, cheaper one first
@@ -45,7 +46,10 @@ the run itself honours `scan_interval_min`).
 ## Decision rules (defaults, all editable)
 
 - **DEAL**: confidence high/medium, raw, no red flags, value ≥ target `min_value_usd`, landed ≤ value × (1 − `push_gap_pct`). Default push gap 20%: an eBay resale nets roughly 85% of sale price after fees, so 20% under is where a flip starts to pay.
-- **LISTED**: matched target card with no market value anywhere (thin, high-end cards). Pushed so Ben sees it, labelled "value unknown".
+- **LISTED**: matched target card with no market value anywhere (thin, high-end cards), labelled "value unknown". With
+  `push_every_listing` on (the default), every genuine target listing that isn't a DEAL is LISTED too and pushes, with its
+  gap in the title. Thresholds then only decide which pushes say DEAL. REJECTs (lots, fakes, Japanese, other cards, weak
+  sellers) and TCGplayer's daily cheapest-copy feed never push.
 - **WATCH**: within `watch_gap_pct` of value. Dashboard only.
 - **REJECT**: lot, proxy/custom/reprint, Japanese, wrong variant, graded (until graded values exist), seller under min feedback. Dashboard shows why.
 - **Condition discount** on value when the title says so: NM 1.0, LP 0.8, MP 0.6, HP 0.4, damaged 0.25, not stated 0.85.
@@ -90,6 +94,9 @@ reverse-engineering its app, and it has no public API, so its numbers are never 
 - 2026-10-28: destinations are Ontario (HST 13%) and New York City (8.875%).
 - 2026-10-28: Collectr values are preferred; entered by hand or pasted, never scraped (see Values).
 
+- 2026-10-28: Ben is told about every listing of the six cards, not just deals (`push_every_listing`, switchable in Settings).
+
 ## Open decisions (owner: Judy/Ben)
 
-- Whether graded cards should alert (needs graded values; Collectr has them, TCGplayer does not).
+- Graded cards push as LISTED while `push_every_listing` is on; whether they should count as DEALs needs graded values
+  (Collectr has them, TCGplayer does not).
