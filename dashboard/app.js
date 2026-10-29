@@ -8,6 +8,9 @@
   const ask = (v, cur) => v == null ? "—" : `${Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 })} <span class="src">${esc(cur)}</span>`;
   const gapCls = g => g == null ? "" : g <= -20 ? "c-good" : g <= -5 ? "c-warn" : "";
   const gap = g => g == null ? "—" : `<span class="gap ${gapCls(g)}">${g > 0 ? "+" : ""}${Math.round(g)}%</span>`;
+  const MP_COUNTRY = { EBAY_US: "US", EBAY_CA: "CA", EBAY_GB: "GB", EBAY_AU: "AU", EBAY_DE: "DE" };
+  const market = l => `${esc(MP[l.marketplace] || l.marketplace)}${l.item_country && l.item_country !== MP_COUNTRY[l.marketplace] ? ` · ships from ${esc(l.item_country)}` : ""}`;
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
   const MP = { EBAY_US: "eBay US", EBAY_CA: "eBay CA", EBAY_GB: "eBay UK", EBAY_AU: "eBay AU", EBAY_DE: "eBay DE" };
   const AGENT_JOBS = {
     catalog: "Pulls every target card and its TCGplayer price, daily",
@@ -41,14 +44,14 @@
     const name = l.name ? `${esc(l.name)} ${esc(l.number)}` : esc(l.title);
     const sub = l.name ? `${esc(l.set_name)} · ${esc(variant(l.subtype))}${l.grade ? " · " + esc(l.grade) : ""}` : "";
     return `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${name}</a></div>
-      <div class="meta">${sub}${sub ? " · " : ""}${esc(MP[l.marketplace] || l.marketplace)} · ${esc(l.item_country || "?")}</div>
-      ${l.name ? `<div class="meta">${esc(l.title)}</div>` : ""}`;
+      <div class="meta">${sub}${sub ? " · " : ""}${market(l)}</div>
+      ${l.name ? `<div class="meta rawtitle">${esc(l.title)}</div>` : ""}`;
   }
   function landedCell(l) {
     const d = l.landed || {}, keys = Object.keys(d).sort((a, b) => d[a].usd - d[b].usd);
     if (!keys.length) return "—";
-    const fmt = k => `${usd(d[k].usd)}${d[k].ship_estimated ? "*" : ""} <span class="src">${esc(k)}</span>`;
-    return fmt(keys[0]) + (keys[1] ? `<span class="alt">${fmt(keys[1])}</span>` : "");
+    const fmt = k => `${usd(d[k].usd)}${d[k].ship_estimated ? "*" : ""} <span class="unit">${esc(k)}</span>`;
+    return fmt(keys[0]) + (keys[1] ? `<span class="alt">${esc(keys[1])} ${usd(d[keys[1]].usd)}${d[keys[1]].ship_estimated ? "*" : ""}</span>` : "");
   }
   const valueCell = l => l.value_usd == null ? `<span class="c-warn">unknown</span><span class="src">add Collectr value</span>`
     : `${usd(l.value_usd)}<span class="src">${esc(l.value_source || "")}</span>`;
@@ -86,14 +89,14 @@
 
     $("#deals tbody").innerHTML = open.length ? open.map(d => `
       <tr id="alert-${d.alert_id}" data-id="${d.alert_id}">
-        <td>${cardCell(d)}${d.kind === "seeded" ? `<div class="meta">already listed when this market was first scanned</div>` : ""}</td>
-        <td class="num">${ask(d.price, d.currency)}</td>
-        <td class="num">${landedCell(d)}</td>
-        <td class="num">${valueCell(d)}</td>
-        <td class="num">${d.tier === "LISTED" ? `<span class="tier LISTED">LISTED</span>` : gap(d.gap_pct)}</td>
-        <td>${condCell(d)}</td>
-        <td>${esc(d.seller || "")}<div class="meta">${d.feedback ?? "?"} · ${d.feedback_pct ?? "?"}% · ${ago(d.sent_at)}</div></td>
-        <td><div class="acts"><a class="btn primary" href="${esc(d.url)}" target="_blank" rel="noopener">Open</a><button data-act="passed">Pass</button><button data-act="bought">Bought</button></div></td>
+        <td class="c-card">${cardCell(d)}${d.kind === "seeded" ? `<div class="meta">already listed when this market was first scanned</div>` : ""}</td>
+        <td class="num c-ask" data-label="Ask">${ask(d.price, d.currency)}</td>
+        <td class="num c-landed" data-label="Landed US$">${landedCell(d)}</td>
+        <td class="num c-value" data-label="Value US$">${valueCell(d)}</td>
+        <td class="num c-gap">${d.tier === "LISTED" ? `<span class="tier LISTED">LISTED</span>` : gap(d.gap_pct)}</td>
+        <td class="c-cond">${condCell(d)}</td>
+        <td class="c-seller">${esc(d.seller || "")}<div class="meta">${d.feedback ?? "?"} · ${d.feedback_pct ?? "?"}% · ${ago(d.sent_at)}</div></td>
+        <td class="c-acts"><div class="acts"><a class="btn primary" href="${esc(d.url)}" target="_blank" rel="noopener">Open</a><button data-act="passed">Pass</button><button data-act="bought">Bought</button></div></td>
       </tr>`).join("")
       : `<tr><td colspan="8" class="empty">No open deals. When a target lists under your threshold it lands here and on your phone.</td></tr>`;
 
@@ -105,12 +108,12 @@
     $("#feed tbody").innerHTML = rows.length ? rows.map(l => `
       <tr>
         <td>${ago(l.first_seen)}</td>
-        <td>${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div><div class="meta">${esc(variant(l.subtype))} · ${esc(l.title)}</div>`
+        <td>${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div><div class="meta">${esc(variant(l.subtype))}</div><div class="meta rawtitle">${esc(l.title)}</div>`
           : `<div><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></div>`}</td>
-        <td>${esc(MP[l.marketplace] || l.marketplace)}<div class="meta">${esc(l.item_country || "")}</div></td>
+        <td>${market(l)}</td>
         <td class="num">${landedCell(l)}</td>
         <td class="num">${l.tier === "REJECT" ? "—" : valueCell(l)}</td>
-        <td class="num">${gap(l.gap_pct)}</td>
+        <td class="num">${l.tier === "REJECT" ? '<span class="na">—</span>' : gap(l.gap_pct)}</td>
         <td><span class="tier ${esc(l.tier)}">${esc(l.tier)}</span><div class="reason">${esc(l.reason || "")}</div></td>
       </tr>`).join("")
       : `<tr><td colspan="7" class="empty">${s.feed.length ? "Nothing in this tab." : "Nothing found yet. Results appear after the first scan."}</td></tr>`;
@@ -123,7 +126,7 @@
         <td class="num"><input class="th" id="watch-${esc(t.id)}" data-k="watch_gap_pct" value="${t.watch_gap_pct}" inputmode="decimal" aria-label="Watch gap for ${esc(t.label)}"></td>
         <td class="num"><input class="th" id="min-${esc(t.id)}" data-k="min_value_usd" value="${t.min_value_usd}" inputmode="decimal" aria-label="Minimum value for ${esc(t.label)}"></td>
         <td class="num"><input class="th" id="max-${esc(t.id)}" data-k="max_price_usd" value="${t.max_price_usd}" inputmode="decimal" aria-label="Maximum landed for ${esc(t.label)}"></td>
-        <td class="num">${(c.DEAL || 0) + (c.LISTED || 0)} deals<div class="meta">${Object.values(c).reduce((a, b) => a + b, 0)} found</div></td>
+        <td class="num">${plural((c.DEAL || 0) + (c.LISTED || 0), "deal")}<div class="meta">${Object.values(c).reduce((a, b) => a + b, 0)} found</div></td>
         <td><button class="pill ${t.paused ? "paused" : "active"}" data-toggle="paused">${t.paused ? "Paused" : "Active"}</button></td>
       </tr>`;
     }).join("");
@@ -163,12 +166,10 @@
     try { rows = SAMPLE ? (SAMPLE.values[valTarget] || []) : await api(`/api/values?target=${encodeURIComponent(valTarget)}`); }
     catch (e) { toast(e.message); return; }
     $("#values tbody").innerHTML = rows.length ? rows.map(c => `<tr data-key="${esc(c.card_key)}">
-      <td class="title">${c.tcg_url ? `<a class="cardlink" href="${esc(c.tcg_url)}" target="_blank" rel="noopener">${esc(c.name)} ${esc(c.number)}</a>` : esc(c.name + " " + c.number)}</td>
-      <td>${esc(variant(c.subtype))}</td>
+      <td><div class="title">${c.tcg_url ? `<a class="cardlink" href="${esc(c.tcg_url)}" target="_blank" rel="noopener">${esc(c.name)} ${esc(c.number)}</a>` : esc(c.name + " " + c.number)}</div><div class="meta">${esc(variant(c.subtype))}</div></td>
       <td class="num">${c.market == null ? `<span class="c-warn">no sales</span>` : usd(c.market)}</td>
       <td class="num"><input class="th ov" id="ov-${esc(c.card_key)}" value="${c.override_usd ?? ""}" placeholder="—" inputmode="decimal" aria-label="Collectr value for ${esc(c.name)}"></td>
-      <td class="num">${usd(c.override_usd ?? c.market)}<span class="src">${c.override_usd != null ? "Collectr" : c.market != null ? "TCGplayer" : ""}</span></td>
-    </tr>`).join("") : `<tr><td colspan="5" class="empty">No cards loaded yet. The catalog agent fills this on its first run.</td></tr>`;
+    </tr>`).join("") : `<tr><td colspan="3" class="empty">No cards loaded yet. The catalog agent fills this on its first run.</td></tr>`;
   }
 
   function focusHash() {

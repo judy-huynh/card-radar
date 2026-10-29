@@ -22,7 +22,6 @@ h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
 .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
 table{width:100%;border-collapse:collapse;min-width:760px}
 th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;text-align:left;padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--line);white-space:nowrap}
-th:first-child{width:28%}
 td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle;font-variant-numeric:tabular-nums}
 tr:last-child td{border-bottom:0}
 td.num,th.num{text-align:right;white-space:nowrap}
@@ -78,3 +77,37 @@ td a.cardlink{color:inherit;text-decoration:none} td a.cardlink:hover{text-decor
 tr.decided td{opacity:.45}
 .err{color:var(--bad)}
 .example-banner{background:var(--warn-bg);color:var(--warn);font-size:13px;padding:8px 12px;border-radius:6px;margin-top:14px}
+
+/* ---- review pass 2 --------------------------------------------------- */
+th.col-card{width:34%} th.col-found{width:64px}
+.unit{color:var(--muted);font-size:11px;font-weight:400}
+.alt{font-size:11px}
+.na{color:var(--muted)}
+.rawtitle{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.tier,.pill{font-size:11px;font-weight:600;letter-spacing:.04em;padding:2px 7px;border-radius:999px}
+.pill.good,.pill.active{background:var(--good-bg);color:var(--good);padding-left:7px}
+.tier.SEEN{background:var(--panel);color:var(--seen);padding-left:7px}
+.tier.REJECT{background:var(--bad-bg);color:var(--bad);padding-left:7px}
+.seg{flex-wrap:nowrap;overflow-x:auto;max-width:100%}
+.seg button{white-space:nowrap}
+.tbl.scroll{max-height:480px;overflow:auto}
+.tbl.scroll th{position:sticky;top:0;z-index:1}
+#values table{min-width:0}
+
+/* Phone: each deal becomes a card so gap and buttons are always visible */
+@media (max-width:600px){
+  #deals{min-width:0}
+  #deals thead{display:none}
+  #deals tr{display:grid;grid-template-columns:1fr auto;grid-template-areas:"card gap" "landed value" "ask ask" "cond seller" "acts acts";gap:6px 12px;padding:12px;border-bottom:1px solid var(--line)}
+  #deals tr:last-child{border-bottom:0}
+  #deals td{display:block;border:0;padding:0;text-align:left;background:none}
+  #deals td.c-card{grid-area:card;min-width:0} #deals td.c-gap{grid-area:gap;text-align:right}
+  #deals td.c-landed{grid-area:landed} #deals td.c-value{grid-area:value;text-align:right}
+  #deals td.c-ask{grid-area:ask} #deals td.c-cond{grid-area:cond} #deals td.c-seller{grid-area:seller;text-align:right}
+  #deals td.c-acts{grid-area:acts} #deals td.c-acts .acts{justify-content:flex-start}
+  #deals td[data-label]::before{content:attr(data-label);display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  #deals .gap{font-size:20px}
+  #deals tr.focus{background:var(--row-hi);box-shadow:inset 3px 0 0 var(--accent)}
+  #deals tr.focus td:first-child{box-shadow:none}
+  #deals .empty{grid-column:1/-1}
+}
