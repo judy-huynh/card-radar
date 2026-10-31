@@ -50,7 +50,7 @@ def deal_message(l, card, kind):
         f"{card['set_name']} · {variant} · {MP_SHORT.get(l['marketplace'], l['marketplace'])} ({l['item_country'] or '?'})" if card else l["title"],
         f"Ask {l['price']:,.2f} {l['currency']} · landed {landed_txt} (US$)",
         f"Value {money(l['value_usd'])} {l['value_source'] or ''}" + (f" · cond {l['condition']}" if l["condition"] else ""),
-        (f"Seller {l['seller']} ({l['feedback']} · {l['feedback_pct']}%)" if l["feedback"] is not None
+        (f"Seller feedback {l['feedback']} · {l['feedback_pct']}%" if l["feedback"] is not None
          else "Cheapest copy on TCGplayer; condition not shown, check the listing"),
     ]
     return title, "\n".join(lines)

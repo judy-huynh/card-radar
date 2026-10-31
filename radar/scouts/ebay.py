@@ -73,7 +73,8 @@ def normalize(it, job):
         "title": it.get("title", ""), "url": it.get("itemWebUrl"), "image": (it.get("image") or {}).get("imageUrl"),
         "price": float(price.get("value", 0)), "currency": price.get("currency", "USD"),
         "buying": ",".join(it.get("buyingOptions", [])),
-        "seller": seller.get("username"), "feedback": seller.get("feedbackScore"),
+        "seller": None,   # never stored: no eBay user data kept, so we're exempt from account-deletion notices
+        "feedback": seller.get("feedbackScore"),
         "feedback_pct": float(pct) if pct not in (None, "") else None,
         "item_country": loc.get("country"),
         "item_location": ", ".join(x for x in [loc.get("city"), loc.get("stateOrProvince"), loc.get("country")] if x),

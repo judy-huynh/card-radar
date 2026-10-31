@@ -64,7 +64,7 @@
   function cardCell(l, withSeller) {
     const name = l.name ? `${esc(l.name)} ${esc(l.number)}` : esc(l.title);
     const bits = [l.name && `${esc(l.set_name)} · ${esc(variant(l.subtype))}`, l.grade && esc(l.grade), market(l),
-                  withSeller && l.feedback != null && `${esc(l.seller)} (${l.feedback})`].filter(Boolean);
+                  withSeller && l.feedback != null && `seller ${l.feedback} feedback`].filter(Boolean);
     return `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${name}</a></div>
       <div class="meta">${bits.join(" · ")}</div>`;
   }
