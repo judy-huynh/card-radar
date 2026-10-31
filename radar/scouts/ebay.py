@@ -1,5 +1,5 @@
 """eBay scout: official Browse API, newest listings first, one search per target x marketplace x ship-to destination."""
-import base64, json, urllib.error, urllib.parse, urllib.request
+import base64, json, time, urllib.error, urllib.parse, urllib.request
 from . import Job, ScoutError
 
 TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token"
@@ -34,12 +34,17 @@ class EbayScout:
                                        "scope": "https://api.ebay.com/oauth/api_scope"}).encode()
         req = urllib.request.Request(TOKEN_URL, data=body, headers={
             "Authorization": f"Basic {auth}", "Content-Type": "application/x-www-form-urlencoded"})
-        try:
-            with urllib.request.urlopen(req, timeout=20) as r:
-                self._token = json.load(r)["access_token"]
-        except urllib.error.HTTPError as e:
-            raise ScoutError(f"eBay sign-in failed ({e.code}): {e.read()[:200].decode(errors='ignore')}")
-        return self._token
+        # eBay's sign-in occasionally rejects good keys for a moment; only a repeated refusal is a real failure
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(req, timeout=20) as r:
+                    self._token = json.load(r)["access_token"]
+                return self._token
+            except urllib.error.HTTPError as e:
+                err = f"eBay sign-in failed ({e.code}): {e.read()[:200].decode(errors='ignore')}"
+                if attempt < 2:
+                    time.sleep(5 * (attempt + 1))
+        raise ScoutError(err)
 
     def run(self, job):
         d = self.destinations[job.dest]
