@@ -15,8 +15,9 @@ def decide(listing, m, value, landed_usd, target, settings):
     tier, reason = _tier(listing, m, value, landed_usd, target, settings)
     # Judy 2026-10-28: Ben hears about every listing of the six cards, not just deals. Junk (REJECT) and
     # TCGplayer's daily cheapest-copy feed (not a new listing) still never push.
+    # Unsure matches (e.g. no set named, could be another /110 set) stay on the dashboard.
     if (settings["decide"].get("push_every_listing") and tier in ("SEEN", "WATCH")
-            and listing.get("source") != "tcgplayer"):
+            and listing.get("source") != "tcgplayer" and m["confidence"] != "low"):
         return "LISTED", reason
     return tier, reason
 
@@ -47,14 +48,19 @@ def _tier(listing, m, value, landed_usd, target, settings):
     elif listing.get("source") == "tcgplayer" and not rules.get("push_tcgplayer_lows"):
         cap = ("WATCH", "cheapest copy · condition unknown")
     elif "AUCTION" in (listing.get("buying") or "") and "FIXED_PRICE" not in (listing.get("buying") or "") and not rules["push_auctions"]:
-        cap = ("WATCH", "auction: current bid, not final price")
+        cap = ("WATCH", "auction: price is the current bid, not the final price")
 
+    if value is None and m["grade"]:
+        return "WATCH", f"graded {m['grade']}: no graded value here, compare on Collectr"
     if value is None:
         tier, reason = ("LISTED" if rules["push_unvalued"] else "WATCH"), "no market value: add the Collectr value"
     elif value < target["min_value_usd"]:
         return "SEEN", f"card worth under US${target['min_value_usd']}"
     elif gap <= -target["push_gap_pct"]:
         tier, reason = "DEAL", f"{gap:.0f}% vs value"
+        low = card.get("low")
+        if low and landed_usd < low * 0.5 and listing.get("source") != "tcgplayer":
+            reason += f" · under half TCGplayer's cheapest copy (US${low:,.0f}): check photos"
     elif gap <= -target["watch_gap_pct"]:
         tier, reason = "WATCH", f"{gap:.0f}% vs value"
     else:

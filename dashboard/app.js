@@ -66,8 +66,48 @@
     const bits = [l.name && `${esc(l.set_name)} · ${esc(variant(l.subtype))}`, l.grade && esc(l.grade), market(l),
                   withSeller && l.feedback != null && `seller ${l.feedback} feedback`].filter(Boolean);
     return `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${name}</a></div>
-      <div class="meta">${bits.join(" · ")}</div>`;
+      ${mine(l)}<div class="meta">${bits.join(" · ")}</div>${warnLine(l)}${howPriced(l)}`;
   }
+  // ★ = one of the six targets Judy listed. Anything rejected (other cards, lots, Japanese…) never gets it.
+  function mine(l) {
+    if (l.tier === "REJECT" || !l.name) return "";
+    const t = S.targets.find(x => x.id === l.target_id);
+    return `<span class="mine" title="On your list of six">★ ${esc(t ? t.label : l.target_id)}</span>`;
+  }
+
+  // The deal math in plain steps, so every number on the row can be checked by hand.
+  const openHow = new Set();   // survive the 60-second refresh
+  document.addEventListener("toggle", e => {
+    const d = e.target;
+    if (d.matches && d.matches("details.how")) d.open ? openHow.add(d.dataset.item) : openHow.delete(d.dataset.item);
+  }, true);
+  const SURE = { high: "sure", medium: "likely", low: "unsure, check the photos" };
+  const COND = { NM: "near mint", LP: "light play", MP: "moderate play", HP: "heavy play", DMG: "damaged" };
+  function howPriced(l) {
+    if (l.tier === "REJECT" || !l.name) return "";
+    const steps = [`Matched to <b>${esc(l.set_name)} ${esc(l.name)} ${esc(l.number)}</b>, ${esc(variant(l.subtype))} (${SURE[l.confidence] || "unsure"})`];
+    const base = l.collectr_usd ?? l.tcg_market;
+    if (base == null) steps.push("No value anywhere yet: add the Collectr value on the Values page");
+    else {
+      const mult = (S.condition_multipliers || {})[l.condition || "unknown"] ?? 1;
+      const cond = l.condition ? COND[l.condition] : "condition not stated";
+      steps.push(`Value: ${l.collectr_usd != null ? "your Collectr" : "TCGplayer market"} US$${usd(base)}` +
+        (mult !== 1 ? ` × ${mult} for ${cond} = <b>US$${usd(l.value_usd)}</b>` : ` (${cond})`));
+    }
+    const d = (l.landed || {})[l.best_dest], dest = (S.destinations || {})[l.best_dest];
+    if (d && dest) {
+      const ask = l.currency === "USD" ? `US$${usd(d.ask_usd)}` : `${Number(l.price).toLocaleString("en-US")} ${esc(l.currency)} = US$${usd(d.ask_usd)}`;
+      steps.push(`Cost to ${esc(dest.label)}: ask ${ask} + shipping US$${usd(d.ship_usd)}${d.ship_estimated ? " (our estimate)" : " (eBay's quote)"}` +
+        ` + ${dest.tax_pct}% tax${d.international ? ` + ${dest.intl_extra_pct}% import estimate` : ""} = <b>US$${usd(d.usd)}</b>`);
+    }
+    if (l.grade) steps.push(`Graded ${esc(l.grade)}: a slab sells for more than a raw card, so there's no gap here. Compare on Collectr`);
+    else if (/AUCTION/.test(l.buying || "") && !/FIXED_PRICE/.test(l.buying || "")) steps.push("Auction: the price is the current bid, so there's no gap until it ends");
+    if (l.gap_pct != null) steps.push(`US$${usd(l.landed_usd)} vs US$${usd(l.value_usd)} = <b>${Math.round(l.gap_pct)}%</b>`);
+    if (l.tcg_low != null) steps.push(`For reference: cheapest copy on TCGplayer today US$${usd(l.tcg_low)}`);
+    return `<details class="how" data-item="${esc(l.item_id)}"${openHow.has(l.item_id) ? " open" : ""}><summary>How this was priced</summary><ol>${steps.map(x => `<li>${x}</li>`).join("")}</ol></details>`;
+  }
+
+  const warnLine = l => /check photos/.test(l.reason || "") ? `<div class="reason c-warn">⚠ ${esc(l.reason.split(" · ").slice(1).join(" · "))}</div>` : "";
   function landedCell(l) {
     const d = l.landed || {}, keys = Object.keys(d).sort((a, b) => d[a].usd - d[b].usd);
     if (!keys.length) return "—";
@@ -90,10 +130,10 @@
     const problems = s.agents.filter(a => a.last_error_at && (!a.last_ok || a.last_error_at > a.last_ok));
     const pill = $("#syspill");
     pill.className = "syspill " + (problems.length ? "bad" : s.agents.length ? "ok" : "");
-    pill.textContent = problems.length === 1 ? problems[0].last_error.split(":")[0] : problems.length ? plural(problems.length, "issue") : "All systems OK";
+    pill.textContent = problems.length === 1 ? problems[0].last_error.split(":")[0].replace(/ \(\d+\)$/, "") : problems.length ? plural(problems.length, "issue") : "All systems OK";
     const open = s.deals.filter(d => d.decision === "open");
     const nd = $("#n-deals"); nd.textContent = open.length || ""; nd.classList.toggle("hot", open.length > 0);
-    $("#n-leads").textContent = s.feed.filter(l => l.tier === "WATCH").length || "";
+    $("#n-leads").textContent = "";
     if (s.example && !$(".example-banner")) {
       $("header").insertAdjacentHTML("afterend", `<div class="example-banner">Design preview with example data. The live dashboard runs on the iMac over Tailscale.</div>`);
     }
@@ -105,7 +145,7 @@
     $("#tiles").innerHTML = [
       ["To review", open.length, `${open.filter(d => d.tier === "DEAL").length} under threshold`],
       ["Best gap", best ? `${Math.round(best.gap_pct)}%` : "—", best ? `${best.name} ${best.number}` : ""],
-      ["This week", s.stats.deals_week, `${s.stats.bought_week} bought`],
+      ["Pushed this week", s.stats.deals_week, `${s.stats.bought_week} bought`],
     ].map(([k, v, m]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}${m ? `<small>${esc(m)}</small>` : ""}</div></div>`).join("");
 
     const rows = slice("deals", open);
@@ -144,11 +184,13 @@
     let rows = tabs.find(t => t[0] === feedTab)[2];
     const tcg = rows.some(l => l.marketplace === "TCGPLAYER");
     $("#feednote").hidden = !tcg;
-    if (feedTab === "look") rows = rows.slice().sort((a, b) => (a.gap_pct ?? 0) - (b.gap_pct ?? 0));
+    // sure matches first, then by gap: an "unsure" -95% is usually a different card, not a steal
+    const unsure = l => l.confidence === "low" ? 1 : 0;
+    if (feedTab === "look") rows = rows.slice().sort((a, b) => unsure(a) - unsure(b) || (a.gap_pct ?? 0) - (b.gap_pct ?? 0));
     const shown = slice("feed", rows);
     $("#feed tbody").innerHTML = shown.length ? shown.map(l => `
-      <tr>
-        <td>${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div><div class="meta">${esc(l.set_name)} · ${esc(variant(l.subtype))}</div>`
+      <tr${mine(l) ? ' class="onlist"' : ""}>
+        <td>${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div>${mine(l)}<div class="meta">${esc(l.set_name)} · ${esc(variant(l.subtype))}${l.grade ? " · " + esc(l.grade) : ""}</div>${howPriced(l)}`
           : `<div class="rawtitle"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></div>`}</td>
         <td>${market(l)}<div class="meta">${ago(l.first_seen)}</div></td>
         <td class="num">${landedCell(l)}</td>

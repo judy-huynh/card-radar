@@ -16,12 +16,16 @@ def evaluate(con, listing, target, cards, rates, settings):
         if card:
             m.update(card=card, card_key=pinned, confidence="high", reason=None)
     base, source = value.base_value(con, m["card"])
+    if m["grade"]:   # a slab's value is not the raw card's value; we have no graded values, so don't pretend
+        base, source = None, None
     val = value.adjusted(base, m["condition"], settings["condition_multipliers"])
     quotes = db.rows(con, "SELECT * FROM quotes WHERE item_id=?", (listing["item_id"],))
     per_dest, best = landed.landed(listing, quotes, settings["destinations"], rates)
     landed_usd = per_dest[best]["usd"] if best else None
     tier, reason = decide.decide(listing, m, val, landed_usd, target, settings)
-    gap = None if (val is None or landed_usd is None) else round((landed_usd / val - 1) * 100, 1)
+    buying = listing.get("buying") or ""
+    auction_only = "AUCTION" in buying and "FIXED_PRICE" not in buying   # price is the current bid, not the final price
+    gap = None if (val is None or landed_usd is None or auction_only) else round((landed_usd / val - 1) * 100, 1)
     return {"card_key": m["card_key"], "confidence": m["confidence"], "variant": m["variant"], "grade": m["grade"],
             "flags": json.dumps(m["flags"]), "condition": m["condition"],
             "value_usd": None if val is None else round(val, 2), "value_source": source,

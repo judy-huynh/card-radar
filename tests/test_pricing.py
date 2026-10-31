@@ -67,6 +67,7 @@ class Decide(unittest.TestCase):
         self.assertEqual(decide(L, match_stub(grade="PSA 9"), 200, 100, T, EVERY)[0], "LISTED")
         self.assertEqual(decide(L, match_stub(), 30, 10, T, EVERY)[0], "LISTED")
         self.assertEqual(decide(L, match_stub(flags=["lot"]), 200, 100, T, EVERY)[0], "REJECT")
+        self.assertEqual(decide(L, match_stub(confidence="low", reason="set not named in title"), 200, 100, T, EVERY)[0], "WATCH")
         self.assertEqual(decide(dict(L, source="tcgplayer", feedback=None, feedback_pct=None), match_stub(), 300, 100, T, EVERY)[0], "WATCH")
 
 

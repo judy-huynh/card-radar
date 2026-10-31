@@ -13,7 +13,9 @@ TARGET_FIELDS = {"push_gap_pct": float, "watch_gap_pct": float, "min_value_usd":
 LISTING_COLS = """l.item_id, l.marketplace, l.title, l.url, l.image, l.price, l.currency, l.buying, l.seller, l.feedback,
   l.feedback_pct, l.item_country, l.item_location, l.first_seen, l.last_seen, l.first_price, l.confidence, l.grade,
   l.flags, l.condition, l.value_usd, l.value_source, l.landed, l.best_dest, l.landed_usd, l.gap_pct, l.tier, l.reason,
-  l.target_id, c.name, c.number, c.subtype, c.set_name, c.market AS tcg_market, c.tcg_url"""
+  l.target_id, c.name, c.number, c.subtype, c.set_name, c.market AS tcg_market, c.low AS tcg_low, c.tcg_url,
+  c.updated AS tcg_updated, o.value_usd AS collectr_usd"""
+JOIN_CARD = "LEFT JOIN cards c ON c.card_key = l.card_key LEFT JOIN overrides o ON o.card_key = l.card_key"
 
 
 def _decode(rows):
@@ -29,13 +31,16 @@ def state(con):
     week = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - 7 * 86400))
     day = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time() - 86400))
     deals = _decode(db.rows(con, f"""SELECT a.id AS alert_id, a.kind, a.pushed, a.sent_at, a.decision, {LISTING_COLS}
-        FROM alerts a JOIN listings l USING(item_id) LEFT JOIN cards c ON c.card_key = l.card_key
+        FROM alerts a JOIN listings l USING(item_id) {JOIN_CARD}
         WHERE a.decision='open' AND a.id IN (SELECT MAX(id) FROM alerts GROUP BY item_id)
           AND l.tier IN ('DEAL','LISTED')
           AND NOT (a.kind = 'seeded' AND l.tier != 'DEAL')   -- listings already for sale on day one live in Leads
         ORDER BY a.sent_at DESC LIMIT 300"""))
-    feed = _decode(db.rows(con, f"""SELECT {LISTING_COLS} FROM listings l LEFT JOIN cards c ON c.card_key = l.card_key
-        ORDER BY l.first_seen DESC LIMIT 250"""))
+    # every listing worth a look (biggest gap first), plus the latest rejects so "why not?" is answerable
+    feed = _decode(db.rows(con, f"""SELECT {LISTING_COLS} FROM listings l {JOIN_CARD}
+        WHERE l.tier != 'REJECT' ORDER BY COALESCE(l.gap_pct, 0) LIMIT 800""")
+        + db.rows(con, f"""SELECT {LISTING_COLS} FROM listings l {JOIN_CARD}
+        WHERE l.tier = 'REJECT' ORDER BY l.first_seen DESC LIMIT 200"""))
     log = db.rows(con, """SELECT a.id AS alert_id, a.sent_at, a.decision, a.decided_at, a.outcome, a.gap_pct, a.landed_usd,
         a.value_usd, l.title, c.name, c.number, l.url FROM alerts a JOIN listings l USING(item_id)
         LEFT JOIN cards c ON c.card_key = l.card_key WHERE a.decision != 'open' ORDER BY a.decided_at DESC LIMIT 60""")
@@ -45,7 +50,7 @@ def state(con):
     rates, fx_at = fx.latest(con)
     last = db.one(con, "SELECT * FROM runs ORDER BY id DESC LIMIT 1")
     stats = {
-        "deals_week": db.one(con, "SELECT COUNT(DISTINCT item_id) n FROM alerts WHERE sent_at >= ?", (week,))["n"],
+        "deals_week": db.one(con, "SELECT COUNT(DISTINCT item_id) n FROM alerts WHERE pushed=1 AND sent_at >= ?", (week,))["n"],
         "bought_week": db.one(con, "SELECT COUNT(*) n FROM alerts WHERE decision='bought' AND decided_at >= ?", (week,))["n"],
         "passed_week": db.one(con, "SELECT COUNT(*) n FROM alerts WHERE decision='passed' AND decided_at >= ?", (week,))["n"],
         "new_24h": db.one(con, "SELECT COUNT(*) n FROM listings WHERE first_seen >= ?", (day,))["n"],
@@ -60,6 +65,7 @@ def state(con):
         "fx": {"cad": rates and rates.get("CAD"), "at": fx_at},
         "budget": {"used": db.calls_today(con, "ebay"), "limit": settings["ebay"]["daily_call_budget"]},
         "markets": [m["id"] for m in settings["ebay"]["marketplaces"]],
+        "condition_multipliers": settings["condition_multipliers"],
         "destinations": {k: {"label": v["label"], "tax_pct": v["tax_pct"], "intl_extra_pct": v["intl_extra_pct"]}
                          for k, v in settings["destinations"].items()},
     }
