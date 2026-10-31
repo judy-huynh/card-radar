@@ -12,17 +12,19 @@ GRADED_WORD = re.compile(r"\b(graded|slab|slabbed)\b", re.I)
 
 FLAGS = [
     ("lot", re.compile(r"\b(lot|lots|bundle|bulk|binder|complete set|full set|set of \d+|x\d+|\d+\s*cards)\b")),
-    ("fake", re.compile(r"\b(proxy|custom|replica|reprint|fan art|fanart|orica|fake|not original|metal|gold plated|digital|code card|online code|novelty|art card)\b")),
+    ("fake", re.compile(r"\b(proxy|custom|replica|reprint|fan art|fanart|orica|fake|not original|metal|gold plated|digital|code card|online code|novelty|art card|altered|skin|card skin)\b")),
+    ("modern reprint", re.compile(r"\b(celebrations?|classic collection|30th|25th|anniversary)\b")),
     ("not a single", re.compile(r"\b(booster|pack|box|sealed|sleeve|sleeves|playmat|poster|sticker|figure|tin|empty|deck box|toploader only)\b")),
-    ("japanese", re.compile(r"\b(japanese|japan|jpn|jp)\b")),
-    ("non-English", re.compile(r"\b(german|deutsch|french|francais|italian|italiano|spanish|espanol|korean|chinese|portuguese)\b")),
+    ("japanese", re.compile(r"\b(japanese|japan|jpn|jp|japanisch|japonais|giapponese|old back)\b")),
+    ("non-English", re.compile(r"\b(german|deutsch|french|francais|italian|italiano|spanish|espanol|korean|chinese|portuguese|italienisch|franz sisch|franzosisch|franzoesisch|spanisch|koreanisch|chinesisch|portugiesisch|allemand)\b")),
 ]
 
 CONDITIONS = [  # checked in order; first hit wins
-    ("DMG", re.compile(r"\b(damaged|dmg|crease|creased|creases|water damage|poor|bent|torn|ink)\b")),
-    ("HP", re.compile(r"\b(heavily played|heavy play|hp)\b")),
-    ("MP", re.compile(r"\b(moderately played|moderate play|mp|played|good)\b")),
-    ("LP", re.compile(r"\b(lightly played|light play|light wear|lp|excellent|exc)\b")),
+    ("DMG", re.compile(r"\b(damaged|dmg|crease|creased|creases|water damage|poor|bent|torn|ink|tinte)\b")),
+    ("HP", re.compile(r"\b(heavily played|heavy played|heavy play|hp|stark bespielt|read description|see description)\b")),
+    ("LP", re.compile(r"\b(lightly played|light play|light wear|leicht bespielt)\b")),   # before MP's bare "played"
+    ("MP", re.compile(r"\b(moderately played|moderate play|mp|played|good|gespielt|gut|gutem)\b")),
+    ("LP", re.compile(r"\b(lightly played|light play|light wear|lp|excellent|exc|bespielt|leicht bespielt)\b")),
     ("NM", re.compile(r"\b(near mint|nm|nm m|mint|pack fresh)\b")),
 ]
 

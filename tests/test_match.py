@@ -103,5 +103,32 @@ class Flags(unittest.TestCase):
         self.assertEqual(r["confidence"], "low")
 
 
+
+class RealTitleJunk(unittest.TestCase):
+    """Titles from the first live eBay scan (2026-10-30) that priced as fake 'deals'."""
+    def flags(self, title, tid):
+        return m(title, tid)["flags"]
+
+    def test_card_skin_is_not_a_card(self):
+        self.assertTrue(self.flags("Dark Gengar N4 6/105 CREDIT CARD SKIN", "dark-gengar"))
+
+    def test_30th_celebration_lugia_is_a_modern_reprint(self):
+        self.assertIn("modern reprint", self.flags("Pokemon TCG 30th Celebration Classic Collection Lugia 149/147 NM", "aquapolis-holo"))
+        self.assertIn("modern reprint", self.flags("Kristall Lugia 149/147 Classic Collection 30. C DE", "aquapolis-holo"))
+
+    def test_old_back_and_german_language_words(self):
+        self.assertIn("japanese", self.flags("[MP] Dark Gengar Holo No.094 Neo Destiny Darkness and to Light Old Back", "dark-gengar"))
+        self.assertIn("non-English", self.flags("Pokémon Dunkles Gengar Holo #6/105 Neo Destiny Italienisch Gut", "dark-gengar"))
+
+    def test_condition_words(self):
+        self.assertEqual(m("Dark Gengar 6/105 Unlimited Holo Rare Neo Destiny Pokemon Card Heavy Played", "dark-gengar")["condition"], "HP")
+        self.assertEqual(m("Pokemon Marill Southern Islands Reverse Holo Englisch Leicht Bespielt", "southern-islands")["condition"], "LP")
+        self.assertEqual(m("Tentacruel 10/18 Southern Islands Lightly Played", "southern-islands")["condition"], "LP")
+        self.assertEqual(m("Pokemon Karte Jumpluff H13/H32 Aquapolis Holo GESPIELT Englisch", "aquapolis-holo")["condition"], "MP")
+
+    def test_read_description_is_not_near_mint(self):
+        self.assertEqual(m("Suicune H25/H32 Aquapolis Holo *Read Description*", "aquapolis-holo")["condition"], "HP")
+
+
 if __name__ == "__main__":
     unittest.main()
