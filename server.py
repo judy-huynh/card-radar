@@ -31,7 +31,9 @@ def state(con):
     deals = _decode(db.rows(con, f"""SELECT a.id AS alert_id, a.kind, a.pushed, a.sent_at, a.decision, {LISTING_COLS}
         FROM alerts a JOIN listings l USING(item_id) LEFT JOIN cards c ON c.card_key = l.card_key
         WHERE a.decision='open' AND a.id IN (SELECT MAX(id) FROM alerts GROUP BY item_id)
-          AND l.tier IN ('DEAL','LISTED') ORDER BY a.sent_at DESC LIMIT 300"""))
+          AND l.tier IN ('DEAL','LISTED')
+          AND NOT (a.kind = 'seeded' AND l.tier != 'DEAL')   -- listings already for sale on day one live in Leads
+        ORDER BY a.sent_at DESC LIMIT 300"""))
     feed = _decode(db.rows(con, f"""SELECT {LISTING_COLS} FROM listings l LEFT JOIN cards c ON c.card_key = l.card_key
         ORDER BY l.first_seen DESC LIMIT 250"""))
     log = db.rows(con, """SELECT a.id AS alert_id, a.sent_at, a.decision, a.decided_at, a.outcome, a.gap_pct, a.landed_usd,
