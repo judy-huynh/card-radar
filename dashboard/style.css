@@ -155,3 +155,10 @@ details[open] > summary{margin-bottom:8px}
 #feed tr.onlist td:first-child{box-shadow:inset 3px 0 0 var(--good)}
 .status{flex-wrap:wrap;min-width:0}
 .c-card{min-width:0}
+
+/* sortable headers */
+th[data-sort]{cursor:pointer;user-select:none}
+th[data-sort]:hover{color:var(--fg)}
+th[data-sort]::after{content:" ↕";opacity:.35}
+th[aria-sort="descending"]{color:var(--fg)} th[aria-sort="descending"]::after{content:" ↓";opacity:1}
+th[aria-sort="ascending"]{color:var(--fg)} th[aria-sort="ascending"]::after{content:" ↑";opacity:1}

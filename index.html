@@ -25,7 +25,7 @@
     <p class="lede" id="dealslede">Everything pushed to your phone that you haven't passed on or bought yet.</p>
     <div class="tiles" id="tiles"></div>
     <div class="tbl"><table id="deals">
-      <thead><tr><th class="col-card">Card</th><th class="num">Landed (US$)</th><th class="num">Value (US$)</th><th class="num">Potential return</th><th>Condition</th><th></th></tr></thead>
+      <thead><tr><th class="col-card" data-sort="card">Card</th><th class="num" data-sort="landed">Landed (US$)</th><th class="num" data-sort="value">Value (US$)</th><th class="num" data-sort="ret">Potential return</th><th data-sort="cond">Condition</th><th></th></tr></thead>
       <tbody></tbody></table></div>
     <div class="pager" id="pg-deals"></div>
     <details class="history">
@@ -44,7 +44,7 @@
     </div>
     <p class="note callout" id="feednote" hidden>TCGplayer rows show the cheapest copy for sale. Its condition isn't shown and it's usually played, so check the listing before buying. These never push to your phone.</p>
     <div class="tbl"><table id="feed">
-      <thead><tr><th class="col-card">Card</th><th>Where</th><th class="num">Landed (US$)</th><th class="num">Value (US$)</th><th class="num">Potential return</th><th>Why</th></tr></thead>
+      <thead><tr><th class="col-card" data-sort="card">Card</th><th data-sort="where">Where</th><th class="num" data-sort="landed">Landed (US$)</th><th class="num" data-sort="value">Value (US$)</th><th class="num" data-sort="ret">Potential return</th><th>Why</th></tr></thead>
       <tbody></tbody></table></div>
     <div class="pager" id="pg-feed"></div>
   </section>
@@ -55,7 +55,7 @@
       <select id="valtarget" aria-label="Target"></select>
     </div>
     <div class="tbl"><table id="values">
-      <thead><tr><th class="col-card">Card</th><th class="num">TCGplayer</th><th class="num">Collectr</th></tr></thead>
+      <thead><tr><th class="col-card" data-sort="card">Card</th><th class="num" data-sort="tcg">TCGplayer</th><th class="num" data-sort="collectr">Collectr</th></tr></thead>
       <tbody></tbody></table></div>
     <div class="pager" id="pg-values"></div>
     <details class="bulk" id="bulk">

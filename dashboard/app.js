@@ -50,6 +50,36 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
   }
 
+  // ---- sorting: click a column header; every list starts at the highest potential return --------
+  const profit = l => (l.value_usd == null || l.landed_usd == null || l.gap_pct == null) ? null : l.value_usd - l.landed_usd;
+  const COND_RANK = { NM: 5, LP: 4, MP: 3, HP: 2, DMG: 1 };
+  const SORT_KEYS = {
+    card: l => ((l.name ? l.name + " " + l.number : l.title) || "").toLowerCase(),
+    where: l => MP[l.marketplace] || l.marketplace || "",
+    landed: l => l.landed_usd, value: l => l.value_usd, ret: profit,
+    cond: l => COND_RANK[l.condition] || 0,
+    tcg: c => c.market, collectr: c => c.override_usd,
+  };
+  const sortBy = { deals: ["ret", -1], feed: ["ret", -1], values: ["tcg", -1] };
+  function sorted(table, rows) {
+    const [key, dir] = sortBy[table], get = SORT_KEYS[key];
+    const unsure = l => l.confidence === "low" ? 1 : 0;   // a "sure" match always ranks above an unsure one
+    return rows.slice().sort((a, b) => {
+      if (table === "feed" && unsure(a) !== unsure(b)) return unsure(a) - unsure(b);
+      const x = get(a), y = get(b);
+      if (x == null || y == null) return (x == null) - (y == null);   // blanks last either way
+      return (x < y ? -1 : x > y ? 1 : 0) * dir;
+    });
+  }
+  function markHeaders() {
+    $$("th[data-sort]").forEach(th => {
+      const [key, dir] = sortBy[th.closest("table").id === "feed" ? "feed" : th.closest("table").id];
+      const on = th.dataset.sort === key;
+      th.setAttribute("aria-sort", on ? (dir < 0 ? "descending" : "ascending") : "none");
+    });
+  }
+  const dealsOpen = () => sorted("deals", S.deals.filter(d => d.decision === "open"));
+
   // ---- paging ------------------------------------------------------------
   function slice(key, rows) {
     const size = PAGE[key], pages = Math.max(1, Math.ceil(rows.length / size));
@@ -114,14 +144,14 @@
 
   function renderDeals(s) {
     const open = s.deals.filter(d => d.decision === "open");
-    const best = open.filter(d => d.gap_pct != null).sort((a, b) => a.gap_pct - b.gap_pct)[0];
+    const best = open.filter(d => profit(d) != null).sort((a, b) => profit(b) - profit(a))[0];
     $("#tiles").innerHTML = [
       ["To review", open.length, `${open.filter(d => d.tier === "DEAL").length} under threshold`],
-      ["Best potential return", best ? `+$${usd(best.value_usd - best.landed_usd)}` : "—", best ? `${best.name} ${best.number}` : ""],
+      ["Best potential return", best ? `+$${usd(profit(best))}` : "—", best ? `${best.name} ${best.number}` : ""],
       ["Pushed this week", s.stats.deals_week, `${s.stats.bought_week} bought`],
     ].map(([k, v, m]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}${m ? `<small>${esc(m)}</small>` : ""}</div></div>`).join("");
 
-    const rows = slice("deals", open);
+    const rows = slice("deals", dealsOpen());
     $("#deals tbody").innerHTML = rows.length ? rows.map(d => `
       <tr id="alert-${d.alert_id}" data-id="${d.alert_id}">
         <td class="c-card">${cardCell(d, true)}</td>
@@ -157,9 +187,7 @@
     let rows = tabs.find(t => t[0] === feedTab)[2];
     const tcg = rows.some(l => l.marketplace === "TCGPLAYER");
     $("#feednote").hidden = !tcg;
-    // sure matches first, then by gap: an "unsure" -95% is usually a different card, not a steal
-    const unsure = l => l.confidence === "low" ? 1 : 0;
-    if (feedTab === "look") rows = rows.slice().sort((a, b) => unsure(a) - unsure(b) || (a.gap_pct ?? 0) - (b.gap_pct ?? 0));
+    rows = sorted("feed", rows);
     const shown = slice("feed", rows);
     $("#feed tbody").innerHTML = shown.length ? shown.map(l => `
       <tr${mine(l) ? ' class="onlist"' : ""}>
@@ -182,7 +210,8 @@
     renderValues();
   }
   function renderValues() {
-    const rows = slice("values", valRows);
+    const rows = slice("values", sorted("values", valRows));
+    markHeaders();
     $("#values tbody").innerHTML = rows.length ? rows.map(c => `<tr data-key="${esc(c.card_key)}">
       <td><div class="title">${c.tcg_url ? `<a class="cardlink" href="${esc(c.tcg_url)}" target="_blank" rel="noopener">${esc(c.name)} ${esc(c.number)}</a>` : esc(c.name + " " + c.number)}</div><div class="meta">${esc(variant(c.subtype))}</div></td>
       <td class="num">${c.market == null ? `<span class="c-warn">no sales</span>` : usd(c.market)}</td>
@@ -235,6 +264,7 @@
     if (view === "deals") renderDeals(s);
     if (view === "leads") renderLeads(s);
     if (view === "values" && !valRows.length) loadValues();
+    markHeaders();
   }
 
   // ---- routing: #deals #leads #values #settings, plus #alert-N and #system --------------
@@ -245,7 +275,7 @@
     $$("[data-panel]").forEach(p => { p.hidden = p.dataset.panel !== view; });
     $$("#views a").forEach(a => { if (a.dataset.view === view) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
     if (alert && S) {   // jump to the page that holds the tapped alert
-      const open = S.deals.filter(d => d.decision === "open");
+      const open = dealsOpen();
       const i = open.findIndex(d => String(d.alert_id) === alert[1]);
       if (i >= 0) page.deals = Math.floor(i / PAGE.deals);
     }
@@ -266,6 +296,15 @@
 
   // ---- events --------------------------------------------------------------
   document.addEventListener("click", async e => {
+    const th = e.target.closest("th[data-sort]");
+    if (th) {
+      const table = th.closest("table").id, cur = sortBy[table];
+      // same column flips direction; a new column starts high-to-low for numbers, A–Z for names
+      sortBy[table] = cur[0] === th.dataset.sort ? [cur[0], -cur[1]] : [th.dataset.sort, ["card", "where"].includes(th.dataset.sort) ? 1 : -1];
+      page[table] = 0;
+      if (table === "values") renderValues(); else render(S);
+      return;
+    }
     const pg = e.target.closest("button[data-page]");
     if (pg) {
       const k = pg.dataset.page; page[k] += Number(pg.dataset.dir);
