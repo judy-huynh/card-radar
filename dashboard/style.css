@@ -150,14 +150,8 @@ details[open] > summary{margin-bottom:8px}
 .views{scrollbar-width:none} .views::-webkit-scrollbar{display:none}
 .callout{background:var(--panel);border-radius:6px;padding:8px 12px;margin:0 0 10px}
 
-/* ★ on your list + the deal math (2026-10-30) */
-.mine{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);background:var(--row-hi);border-radius:999px;padding:1px 8px;margin:3px 0 1px}
-#feed tr.onlist td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
-details.how{margin-top:4px;font-size:12px;color:var(--muted)}
-details.how summary{cursor:pointer;color:var(--accent);font-weight:600;list-style:none}
-details.how summary::-webkit-details-marker{display:none}
-details.how summary::before{content:"▸ "} details.how[open] summary::before{content:"▾ "}
-details.how ol{margin:6px 0 2px;padding-left:18px;display:grid;gap:3px;max-width:56ch}
-details.how b{color:var(--fg);font-weight:600}
+/* ★ Match: one of the six targets (2026-10-30) */
+.mine{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:var(--good);border-radius:999px;padding:1px 8px;margin:3px 0 1px}
+#feed tr.onlist td:first-child{box-shadow:inset 3px 0 0 var(--good)}
 .status{flex-wrap:wrap;min-width:0}
 .c-card{min-width:0}

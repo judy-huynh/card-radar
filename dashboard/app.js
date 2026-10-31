@@ -8,7 +8,12 @@
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const usd = v => v == null ? "—" : Math.round(v).toLocaleString("en-US");
   const gapCls = g => g == null ? "" : g <= -20 ? "c-good" : g <= -5 ? "c-warn" : "";
-  const gap = g => g == null ? '<span class="na">—</span>' : `<span class="gap ${gapCls(g)}">${g > 0 ? "+" : ""}${Math.round(g)}%</span>`;
+  // Potential return = value − landed cost, before selling fees; % is on what you'd pay.
+  const ret = l => {
+    if (l.gap_pct == null || l.value_usd == null || l.landed_usd == null) return '<span class="na">—</span>';
+    const p = l.value_usd - l.landed_usd, pct = p / l.landed_usd * 100;
+    return `<span class="gap ${gapCls(l.gap_pct)}">${p >= 0 ? "+" : "−"}$${usd(Math.abs(p))}</span><span class="alt">${p >= 0 ? "+" : "−"}${Math.abs(Math.round(pct))}%</span>`;
+  };
   const MP = { TCGPLAYER: "TCGplayer", EBAY_US: "eBay US", EBAY_CA: "eBay CA", EBAY_GB: "eBay UK", EBAY_AU: "eBay AU", EBAY_DE: "eBay DE" };
   const MP_COUNTRY = { TCGPLAYER: "US", EBAY_US: "US", EBAY_CA: "CA", EBAY_GB: "GB", EBAY_AU: "AU", EBAY_DE: "DE" };
   const AGENTS = {
@@ -66,45 +71,13 @@
     const bits = [l.name && `${esc(l.set_name)} · ${esc(variant(l.subtype))}`, l.grade && esc(l.grade), market(l),
                   withSeller && l.feedback != null && `seller ${l.feedback} feedback`].filter(Boolean);
     return `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${name}</a></div>
-      ${mine(l)}<div class="meta">${bits.join(" · ")}</div>${warnLine(l)}${howPriced(l)}`;
+      ${mine(l)}<div class="meta">${bits.join(" · ")}</div>${warnLine(l)}`;
   }
   // ★ = one of the six targets Judy listed. Anything rejected (other cards, lots, Japanese…) never gets it.
   function mine(l) {
     if (l.tier === "REJECT" || !l.name) return "";
     const t = S.targets.find(x => x.id === l.target_id);
-    return `<span class="mine" title="On your list of six">★ ${esc(t ? t.label : l.target_id)}</span>`;
-  }
-
-  // The deal math in plain steps, so every number on the row can be checked by hand.
-  const openHow = new Set();   // survive the 60-second refresh
-  document.addEventListener("toggle", e => {
-    const d = e.target;
-    if (d.matches && d.matches("details.how")) d.open ? openHow.add(d.dataset.item) : openHow.delete(d.dataset.item);
-  }, true);
-  const SURE = { high: "sure", medium: "likely", low: "unsure, check the photos" };
-  const COND = { NM: "near mint", LP: "light play", MP: "moderate play", HP: "heavy play", DMG: "damaged" };
-  function howPriced(l) {
-    if (l.tier === "REJECT" || !l.name) return "";
-    const steps = [`Matched to <b>${esc(l.set_name)} ${esc(l.name)} ${esc(l.number)}</b>, ${esc(variant(l.subtype))} (${SURE[l.confidence] || "unsure"})`];
-    const base = l.collectr_usd ?? l.tcg_market;
-    if (base == null) steps.push("No value anywhere yet: add the Collectr value on the Values page");
-    else {
-      const mult = (S.condition_multipliers || {})[l.condition || "unknown"] ?? 1;
-      const cond = l.condition ? COND[l.condition] : "condition not stated";
-      steps.push(`Value: ${l.collectr_usd != null ? "your Collectr" : "TCGplayer market"} US$${usd(base)}` +
-        (mult !== 1 ? ` × ${mult} for ${cond} = <b>US$${usd(l.value_usd)}</b>` : ` (${cond})`));
-    }
-    const d = (l.landed || {})[l.best_dest], dest = (S.destinations || {})[l.best_dest];
-    if (d && dest) {
-      const ask = l.currency === "USD" ? `US$${usd(d.ask_usd)}` : `${Number(l.price).toLocaleString("en-US")} ${esc(l.currency)} = US$${usd(d.ask_usd)}`;
-      steps.push(`Cost to ${esc(dest.label)}: ask ${ask} + shipping US$${usd(d.ship_usd)}${d.ship_estimated ? " (our estimate)" : " (eBay's quote)"}` +
-        ` + ${dest.tax_pct}% tax${d.international ? ` + ${dest.intl_extra_pct}% import estimate` : ""} = <b>US$${usd(d.usd)}</b>`);
-    }
-    if (l.grade) steps.push(`Graded ${esc(l.grade)}: a slab sells for more than a raw card, so there's no gap here. Compare on Collectr`);
-    else if (/AUCTION/.test(l.buying || "") && !/FIXED_PRICE/.test(l.buying || "")) steps.push("Auction: the price is the current bid, so there's no gap until it ends");
-    if (l.gap_pct != null) steps.push(`US$${usd(l.landed_usd)} vs US$${usd(l.value_usd)} = <b>${Math.round(l.gap_pct)}%</b>`);
-    if (l.tcg_low != null) steps.push(`For reference: cheapest copy on TCGplayer today US$${usd(l.tcg_low)}`);
-    return `<details class="how" data-item="${esc(l.item_id)}"${openHow.has(l.item_id) ? " open" : ""}><summary>How this was priced</summary><ol>${steps.map(x => `<li>${x}</li>`).join("")}</ol></details>`;
+    return `<span class="mine" title="Matches one of your six targets">★ Match · ${esc(t ? t.label : l.target_id)}</span>`;
   }
 
   const warnLine = l => /check photos/.test(l.reason || "") ? `<div class="reason c-warn">⚠ ${esc(l.reason.split(" · ").slice(1).join(" · "))}</div>` : "";
@@ -144,7 +117,7 @@
     const best = open.filter(d => d.gap_pct != null).sort((a, b) => a.gap_pct - b.gap_pct)[0];
     $("#tiles").innerHTML = [
       ["To review", open.length, `${open.filter(d => d.tier === "DEAL").length} under threshold`],
-      ["Best gap", best ? `${Math.round(best.gap_pct)}%` : "—", best ? `${best.name} ${best.number}` : ""],
+      ["Best potential return", best ? `+$${usd(best.value_usd - best.landed_usd)}` : "—", best ? `${best.name} ${best.number}` : ""],
       ["Pushed this week", s.stats.deals_week, `${s.stats.bought_week} bought`],
     ].map(([k, v, m]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}${m ? `<small>${esc(m)}</small>` : ""}</div></div>`).join("");
 
@@ -154,7 +127,7 @@
         <td class="c-card">${cardCell(d, true)}</td>
         <td class="num c-landed" data-label="Landed US$">${landedCell(d)}<span class="alt">ask ${Number(d.price).toLocaleString("en-US")} ${esc(d.currency)}</span></td>
         <td class="num c-value" data-label="Value US$">${valueCell(d)}</td>
-        <td class="num c-gap">${d.gap_pct == null ? `<span class="tier LISTED">NO VALUE</span>` : gap(d.gap_pct)}</td>
+        <td class="num c-gap">${d.gap_pct == null ? `<span class="tier LISTED">NO VALUE</span>` : ret(d)}</td>
         <td class="c-cond">${condCell(d)}</td>
         <td class="c-acts"><div class="acts"><a class="btn primary" href="${esc(d.url)}" target="_blank" rel="noopener">Open</a><button data-act="passed">Pass</button><button data-act="bought">Bought</button></div></td>
       </tr>`).join("")
@@ -190,12 +163,12 @@
     const shown = slice("feed", rows);
     $("#feed tbody").innerHTML = shown.length ? shown.map(l => `
       <tr${mine(l) ? ' class="onlist"' : ""}>
-        <td>${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div>${mine(l)}<div class="meta">${esc(l.set_name)} · ${esc(variant(l.subtype))}${l.grade ? " · " + esc(l.grade) : ""}</div>${howPriced(l)}`
+        <td>${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div>${mine(l)}<div class="meta">${esc(l.set_name)} · ${esc(variant(l.subtype))}${l.grade ? " · " + esc(l.grade) : ""}</div>`
           : `<div class="rawtitle"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></div>`}</td>
         <td>${market(l)}<div class="meta">${ago(l.first_seen)}</div></td>
         <td class="num">${landedCell(l)}</td>
         <td class="num">${l.tier === "REJECT" ? '<span class="na">—</span>' : valueCell(l)}</td>
-        <td class="num">${l.tier === "REJECT" ? '<span class="na">—</span>' : gap(l.gap_pct)}</td>
+        <td class="num">${l.tier === "REJECT" ? '<span class="na">—</span>' : ret(l)}</td>
         <td><span class="tier ${esc(l.tier)}">${esc(l.tier)}</span><div class="reason">${/^[+-]?\d+% vs value$/.test(l.reason || "") ? "" : esc(l.reason || "")}</div></td>
       </tr>`).join("")
       : `<tr><td colspan="6" class="empty">${s.feed.length ? "Nothing here." : "Nothing found yet. Results appear after the first scan."}</td></tr>`;
