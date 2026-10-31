@@ -76,6 +76,11 @@
       const [key, dir] = sortBy[th.closest("table").id === "feed" ? "feed" : th.closest("table").id];
       const on = th.dataset.sort === key;
       th.setAttribute("aria-sort", on ? (dir < 0 ? "descending" : "ascending") : "none");
+      if (!on) return;
+      // tint the whole sorted column so it's obvious which one is driving the order
+      const table = th.closest("table"), i = th.cellIndex;
+      table.querySelectorAll("td.sorted").forEach(td => td.classList.remove("sorted"));
+      table.querySelectorAll("tbody tr").forEach(tr => tr.cells.length > i && tr.cells[i].classList.add("sorted"));
     });
   }
   const dealsOpen = () => sorted("deals", S.deals.filter(d => d.decision === "open"));
@@ -100,9 +105,12 @@
     const name = l.name ? `${esc(l.name)} ${esc(l.number)}` : esc(l.title);
     const bits = [l.name && `${esc(l.set_name)} · ${esc(variant(l.subtype))}`, l.grade && esc(l.grade), market(l),
                   withSeller && l.feedback != null && `seller ${l.feedback} feedback`].filter(Boolean);
-    return `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${name}</a></div>
-      ${mine(l)}<div class="meta">${bits.join(" · ")}</div>${warnLine(l)}`;
+    return `<div class="cardcell">${thumb(l)}<div class="cardtext"><div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${name}</a></div>
+      ${mine(l)}<div class="meta">${bits.join(" · ")}</div>${warnLine(l)}</div></div>`;
   }
+  // Listing photo; a plain card-shaped tile when there is none (TCGplayer rows, the preview)
+  const thumb = l => `<span class="thumb">${l.image ? `<img src="${esc(l.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}</span>`;
+
   // ★ = one of the six targets Judy listed. Anything rejected (other cards, lots, Japanese…) never gets it.
   function mine(l) {
     if (l.tier === "REJECT" || !l.name) return "";
@@ -133,6 +141,7 @@
     const problems = s.agents.filter(a => a.last_error_at && (!a.last_ok || a.last_error_at > a.last_ok));
     const pill = $("#syspill");
     pill.className = "syspill " + (problems.length ? "bad" : s.agents.length ? "ok" : "");
+    $(".radar").classList.toggle("down", problems.length > 0);
     pill.textContent = problems.length === 1 ? problems[0].last_error.split(":")[0].replace(/ \(\d+\)$/, "") : problems.length ? plural(problems.length, "issue") : "All systems OK";
     const open = s.deals.filter(d => d.decision === "open");
     const nd = $("#n-deals"); nd.textContent = open.length || ""; nd.classList.toggle("hot", open.length > 0);
@@ -191,8 +200,8 @@
     const shown = slice("feed", rows);
     $("#feed tbody").innerHTML = shown.length ? shown.map(l => `
       <tr${mine(l) ? ' class="onlist"' : ""}>
-        <td>${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div>${mine(l)}<div class="meta">${esc(l.set_name)} · ${esc(variant(l.subtype))}${l.grade ? " · " + esc(l.grade) : ""}</div>`
-          : `<div class="rawtitle"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></div>`}</td>
+        <td><div class="cardcell">${thumb(l)}<div class="cardtext">${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div>${mine(l)}<div class="meta">${esc(l.set_name)} · ${esc(variant(l.subtype))}${l.grade ? " · " + esc(l.grade) : ""}</div>`
+          : `<div class="rawtitle"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></div>`}</div></div></td>
         <td>${market(l)}<div class="meta">${ago(l.first_seen)}</div></td>
         <td class="num">${landedCell(l)}</td>
         <td class="num">${l.tier === "REJECT" ? '<span class="na">—</span>' : valueCell(l)}</td>
