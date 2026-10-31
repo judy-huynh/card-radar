@@ -58,9 +58,10 @@ def _tier(listing, m, value, landed_usd, target, settings):
         return "SEEN", f"card worth under US${target['min_value_usd']}"
     elif gap <= -target["push_gap_pct"]:
         tier, reason = "DEAL", f"{gap:.0f}% vs value"
-        low = card.get("low")
-        if low and landed_usd < low * 0.5 and listing.get("source") != "tcgplayer":
-            reason += f" · under half TCGplayer's cheapest copy (US${low:,.0f}): check photos"
+        # far below BOTH TCGplayer's market and its cheapest copy: usually damaged, mislabelled or a scam
+        ref = min(x for x in (card.get("low"), card.get("market")) if x) if (card.get("low") or card.get("market")) else None
+        if ref and landed_usd < ref * 0.5 and listing.get("source") != "tcgplayer":
+            reason += f" · under half TCGplayer's price (US${ref:,.0f}): check photos"
     elif gap <= -target["watch_gap_pct"]:
         tier, reason = "WATCH", f"{gap:.0f}% vs value"
     else:

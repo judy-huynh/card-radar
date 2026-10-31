@@ -31,26 +31,43 @@ def money(v):
     return "—" if v is None else f"${v:,.0f}"
 
 
-def deal_message(l, card, kind):
-    """Phone-sized: line 1 what + where, line 2 landed vs value, line 3 seller/condition."""
+COND = {"NM": "Near mint", "LP": "Light play", "MP": "Moderate play", "HP": "Heavy play", "DMG": "Damaged"}
+
+
+def deal_message(l, card, kind, target_label=None):
+    """Same words as the dashboard. Title = the verdict; body = what, where, money, seller."""
     landed = json.loads(l["landed"] or "{}")
-    dests = sorted(landed.items(), key=lambda kv: kv[1]["usd"])
-    landed_txt = " · ".join(f"{k} {money(v['usd'])}{'*' if v['ship_estimated'] else ''}" for k, v in dests)
-    variant = card["subtype"].replace("Holofoil", "Holo") if card else ""
-    if l["gap_pct"] is None:
-        head = "LISTED · value unknown"
-    elif l["tier"] == "DEAL":
-        head = f"DEAL {l['gap_pct']:.0f}%"
+    best = landed.get(l["best_dest"]) if l["best_dest"] else None
+    ret = None if l["gap_pct"] is None or l["value_usd"] is None or l["landed_usd"] is None else l["value_usd"] - l["landed_usd"]
+    name = f"{card['name']} {card['number']}" if card else l["title"][:60]
+    buying = l["buying"] or ""
+    if l["tier"] == "DEAL" and ret is not None:
+        title = f"DEAL · +{money(ret)} potential return · {name}"
+    elif ret is not None:
+        title = f"LISTED · {name} · " + (f"+{money(ret)} potential return" if ret >= 0 else f"{money(-ret)} over value")
+    elif l["grade"]:
+        title = f"LISTED · {name} · {l['grade']}"
+    elif "AUCTION" in buying and "FIXED_PRICE" not in buying:
+        title = f"LISTED · {name} · auction"
     else:
-        head = f"LISTED {l['gap_pct']:+.0f}% vs value"
+        title = f"LISTED · {name} · value unknown"
     if kind == "price_drop":
-        head = "PRICE DROP · " + head
-    title = f"{head} · {card['name']} {card['number']}" if card else head
-    lines = [
-        f"{card['set_name']} · {variant} · {MP_SHORT.get(l['marketplace'], l['marketplace'])} ({l['item_country'] or '?'})" if card else l["title"],
-        f"Ask {l['price']:,.2f} {l['currency']} · landed {landed_txt} (US$)",
-        f"Value {money(l['value_usd'])} {l['value_source'] or ''}" + (f" · cond {l['condition']}" if l["condition"] else ""),
-        (f"Seller feedback {l['feedback']} · {l['feedback_pct']}%" if l["feedback"] is not None
-         else "Cheapest copy on TCGplayer; condition not shown, check the listing"),
-    ]
-    return title, "\n".join(lines)
+        title = "PRICE DROP · " + title
+
+    where = MP_SHORT.get(l["marketplace"], l["marketplace"])
+    if l["item_country"] and l["item_country"] not in where:
+        where += f" (from {l['item_country']})"
+    lines = [f"★ Match · {target_label}" if target_label else (card["set_name"] if card else ""),
+             f"{where} · " + (f"Graded {l['grade']}" if l["grade"] else COND.get(l["condition"], "Condition not stated"))]
+    money_line = []
+    if best:
+        money_line.append(f"Landed {money(best['usd'])}{'*' if best['ship_estimated'] else ''} {l['best_dest']}")
+    if l["value_usd"] is not None:
+        money_line.append(f"Value {money(l['value_usd'])} {l['value_source'] or ''}".strip())
+    if money_line:
+        lines.append(" · ".join(money_line))
+    seller = f" · seller {l['feedback']:,} feedback" if l["feedback"] is not None else ""
+    lines.append(f"Ask {l['price']:,.2f} {l['currency']}{seller}")
+    if "check photos" in (l["reason"] or ""):
+        lines.append("⚠ " + l["reason"].split(" · ", 1)[-1])
+    return title, "\n".join(x for x in lines if x)

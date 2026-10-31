@@ -167,7 +167,8 @@ def _record_alert(con, item_id, kind, pushed, title=None, message=None):
 def _push_deal(con, item_id, kind, base_url, dry, run):
     l = db.one(con, "SELECT * FROM listings WHERE item_id=?", (item_id,))
     card = db.one(con, "SELECT * FROM cards WHERE card_key=?", (l["card_key"],))
-    title, message = notify.deal_message(l, card, kind)
+    target = next((t for t in load_targets() if card and t["id"] == card["target_id"]), None)
+    title, message = notify.deal_message(l, card, kind, target and target["label"])
     alert_id = _record_alert(con, item_id, kind, pushed=0, title=title, message=message)
     big = l["gap_pct"] is not None and l["gap_pct"] <= -load_settings()["decide"]["big_deal_gap_pct"]
     try:

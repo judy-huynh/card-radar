@@ -4,6 +4,8 @@ Owner: Judy (GitHub judy-huynh). Alerts go to Ben. Both are non-technical: expla
 ask only on real forks (money, strategy, terms of service), decide routine things yourself.
 
 ## Read first
+- `NOTES.md` is the running diary: current state, next steps, open questions, dated log. Update it at the end of
+  any session that changes something, newest entry first.
 - `SPEC.md` is the contract: end goal, agents, decision rules, done criteria, open decisions. Change the spec
   before changing behaviour; strategy lives in the spec and config, not in code.
 - `config/targets.json` + `config/settings.json` hold every threshold. Never hard-code one.
