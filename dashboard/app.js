@@ -105,17 +105,14 @@
     const name = l.name ? `${esc(l.name)} ${esc(l.number)}` : esc(l.title);
     const bits = [l.name && `${esc(l.set_name)} · ${esc(variant(l.subtype))}`, l.grade && esc(l.grade), market(l),
                   withSeller && l.feedback != null && `seller ${l.feedback} feedback`].filter(Boolean);
-    return `<div class="cardcell">${thumb(l)}<div class="cardtext"><div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${name}</a></div>
-      ${mine(l)}<div class="meta">${bits.join(" · ")}</div>${warnLine(l)}</div></div>`;
+    return `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${name}</a></div>
+      ${mine(l)}<div class="meta">${bits.join(" · ")}</div>${warnLine(l)}`;
   }
-  // Listing photo; a plain card-shaped tile when there is none (TCGplayer rows, the preview)
-  const thumb = l => `<span class="thumb">${l.image ? `<img src="${esc(l.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}</span>`;
-
   // ★ = one of the six targets Judy listed. Anything rejected (other cards, lots, Japanese…) never gets it.
   function mine(l) {
     if (l.tier === "REJECT" || !l.name) return "";
     const t = S.targets.find(x => x.id === l.target_id);
-    return `<span class="mine" title="Matches one of your six targets">★ Match · ${esc(t ? t.label : l.target_id)}</span>`;
+    return `<div class="mine" title="Matches one of your six targets"><span class="star">★</span>Match · ${esc(t ? t.label : l.target_id)}</div>`;
   }
 
   const warnLine = l => /check photos/.test(l.reason || "") ? `<div class="reason c-warn">⚠ ${esc(l.reason.split(" · ").slice(1).join(" · "))}</div>` : "";
@@ -200,8 +197,8 @@
     const shown = slice("feed", rows);
     $("#feed tbody").innerHTML = shown.length ? shown.map(l => `
       <tr${mine(l) ? ' class="onlist"' : ""}>
-        <td><div class="cardcell">${thumb(l)}<div class="cardtext">${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div>${mine(l)}<div class="meta">${esc(l.set_name)} · ${esc(variant(l.subtype))}${l.grade ? " · " + esc(l.grade) : ""}</div>`
-          : `<div class="rawtitle"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></div>`}</div></div></td>
+        <td>${l.name ? `<div class="title"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)} ${esc(l.number)}</a></div>${mine(l)}<div class="meta">${esc(l.set_name)} · ${esc(variant(l.subtype))}${l.grade ? " · " + esc(l.grade) : ""}</div>`
+          : `<div class="rawtitle"><a class="cardlink" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></div>`}</td>
         <td>${market(l)}<div class="meta">${ago(l.first_seen)}</div></td>
         <td class="num">${landedCell(l)}</td>
         <td class="num">${l.tier === "REJECT" ? '<span class="na">—</span>' : valueCell(l)}</td>
