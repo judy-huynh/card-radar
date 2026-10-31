@@ -8,8 +8,9 @@ This repo is public, so never write keys, the ntfy topic or the Tailscale addres
 
 1. **Phone alerts match the dashboard.** ntfy titles and text use "Potential return" and "★ Match", the same
    words as the dashboard. *(Done 2026-10-30; see log.)*
-2. **Confirm alerts arrive.** Make sure the next scans push new listings to Ben, and that tapping an alert opens the
-   right row on the dashboard.
+2. **Confirm alerts arrive.** *(Done 2026-10-30 23:27: the first scan after activation was clean. It found 24 new
+   listings, pushed 7 to Ben, and had no sign-in errors.)* Still to check: Ben confirms that tapping an alert opens
+   the right row.
 3. **Fact-check the listings.** Judy will ask for this. Go through the current deals and check that each one is
    the right card, has the right value, has the right landed cost and a believable condition. Fix what's wrong at
    the source (matcher, value, landed), not row by row.
