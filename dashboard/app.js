@@ -29,6 +29,10 @@
   const PAGE = { deals: 10, log: 10, feed: 20, values: 20 };
   const VIEWS = ["deals", "leads", "values", "settings"];
   const SAMPLE = window.SAMPLE || null;
+  // Settings edits wait here until Save (SPEC "Rules on the Settings page")
+  const pending = { rules: {}, targets: {} };
+  const nPending = () => Object.keys(pending.rules).length + Object.values(pending.targets).reduce((n, t) => n + Object.keys(t).length, 0);
+  const tval = (t, k) => (pending.targets[t.id] || {})[k] ?? t[k];
   let S = null, view = "deals", feedTab = "look", valTarget = null, valRows = [];
   const page = { deals: 0, log: 0, feed: 0, values: 0 };
 
@@ -185,7 +189,9 @@
         <td class="c-cond">${condCell(d)}</td>
         <td class="c-acts"><div class="acts"><a class="btn primary" href="${esc(d.url)}" target="_blank" rel="noopener">Open</a><button data-act="passed">Pass</button><button data-act="bought">Bought</button></div></td>
       </tr>`).join("")
-      : `<tr><td colspan="6" class="empty">Nothing to review. New listings of your six cards show up here and on your phone.</td></tr>`;
+      : `<tr><td colspan="6" class="empty">${s.condition_filter
+        ? "No card has passed the rules yet. Raw near-mint cards with clean photos land here; everything else is in Leads with the reason."
+        : "Nothing to review. New listings of your six cards show up here and on your phone."}</td></tr>`;
     pager("deals", open.length);
 
     $("#n-log").textContent = s.log.length ? `(${s.log.length})` : "";
@@ -244,7 +250,39 @@
     pager("values", valRows.length);
   }
 
+  const dirtyT = (t, k) => (pending.targets[t.id] || {})[k] !== undefined ? " dirty" : "";
+  const UNIT = { pct: "%", money: "$" };
+  function ruleCtl(r) {
+    const v = r.key in pending.rules ? pending.rules[r.key] : r.value;
+    if (r.kind === "bool") return `<button type="button" class="chip" data-rule="${esc(r.key)}" aria-pressed="${!!v}">${v ? "On" : "Off"}</button>`;
+    if (r.kind === "multi") return r.options.map(([val, label]) =>
+      `<button type="button" class="chip" data-rule="${esc(r.key)}" data-opt="${esc(val)}" aria-pressed="${v.includes(val)}">${esc(label)}</button>`).join("");
+    const unit = UNIT[r.kind] || "";
+    return `${unit === "$" ? `<span class="unit">$</span>` : ""}<input class="rv" data-rule="${esc(r.key)}" value="${esc(v)}" inputmode="decimal" aria-label="${esc(r.label)}">${unit === "%" ? `<span class="unit">%</span>` : ""}`;
+  }
+  function renderRules(s) {
+    if (!s.rules) { $("#rules").innerHTML = ""; return; }
+    const row = r => `<div class="rule${r.key in pending.rules ? " dirty" : ""}"><div><div class="lab">${esc(r.label)}</div>${r.help ? `<div class="help">${esc(r.help)}</div>` : ""}</div><div class="ctl">${ruleCtl(r)}</div></div>`;
+    $("#rules").innerHTML = s.rules.groups.map(([g, title]) => {
+      const rows = s.rules.rules.filter(r => r.group === g).map(row).join("");
+      return g === "advanced"
+        ? `<details class="rules"${s.rules.rules.some(r => r.group === g && r.key in pending.rules) ? " open" : ""}><summary>${esc(title)}: limits that keep eBay and the photo check within budget</summary>${rows}</details>`
+        : `<div class="rules"><h4>${esc(title)}</h4>${rows}</div>`;
+    }).join("");
+    const log = s.rule_log || [];
+    $("#n-rulelog").textContent = log.length ? `(${log.length})` : "";
+    const show = v => { try { const x = JSON.parse(v); return Array.isArray(x) ? x.join(", ") : typeof x === "boolean" ? (x ? "on" : "off") : x; } catch (e) { return v; } };
+    $("#rulelogt tbody").innerHTML = log.length ? log.map(c => `<tr><td class="meta">${esc((c.at || "").slice(5, 16))}</td>
+      <td>${esc(c.what)}</td><td>${esc(show(c.old))} → <b>${esc(show(c.new))}</b></td>
+      <td><button type="button" data-undo="${c.id}">Undo</button></td></tr>`).join("")
+      : `<tr><td colspan="4" class="empty">No changes yet.</td></tr>`;
+    const n = nPending();
+    $("#savebar").hidden = n === 0;
+    $("#savecount").textContent = `${n} unsaved ${n === 1 ? "change" : "changes"}`;
+  }
+
   function renderSettings(s) {
+    renderRules(s);
     const f = s.condition_filter;
     $("#pushmode").hidden = !!f;
     if (f) {
@@ -259,15 +297,15 @@
       : "Only listings under the push gap below, or with no known value, push. Everything else waits in Leads.";
     $("#targets tbody").innerHTML = s.targets.map(t => `<tr data-id="${esc(t.id)}">
       <td class="title">${esc(t.label)}</td>
-      <td class="num"><input class="th" id="push-${esc(t.id)}" data-k="push_gap_pct" value="${t.push_gap_pct}" inputmode="decimal" aria-label="Push gap for ${esc(t.label)}"></td>
-      <td class="num"><input class="th" id="min-${esc(t.id)}" data-k="min_value_usd" value="${t.min_value_usd}" inputmode="decimal" aria-label="Minimum value for ${esc(t.label)}"></td>
-      <td class="num"><input class="th" id="max-${esc(t.id)}" data-k="max_price_usd" value="${t.max_price_usd}" inputmode="decimal" aria-label="Maximum landed for ${esc(t.label)}"></td>
-      <td><button class="pill ${t.paused ? "paused" : "active"}" data-toggle="paused">${t.paused ? "Paused" : "Active"}</button></td>
+      <td class="num${dirtyT(t, "push_gap_pct")}"><input class="th" id="push-${esc(t.id)}" data-k="push_gap_pct" value="${tval(t, "push_gap_pct")}" inputmode="decimal" aria-label="Push gap for ${esc(t.label)}"></td>
+      <td class="num${dirtyT(t, "min_value_usd")}"><input class="th" id="min-${esc(t.id)}" data-k="min_value_usd" value="${tval(t, "min_value_usd")}" inputmode="decimal" aria-label="Minimum value for ${esc(t.label)}"></td>
+      <td class="num${dirtyT(t, "max_price_usd")}"><input class="th" id="max-${esc(t.id)}" data-k="max_price_usd" value="${tval(t, "max_price_usd")}" inputmode="decimal" aria-label="Maximum landed for ${esc(t.label)}"></td>
+      <td class="${dirtyT(t, "paused")}"><button class="pill ${tval(t, "paused") ? "paused" : "active"}" data-toggle="paused">${tval(t, "paused") ? "Paused" : "Active"}</button></td>
     </tr>`).join("");
     $("#targets2 tbody").innerHTML = s.targets.map(t => {
       const c = s.target_counts[t.id] || {};
       return `<tr data-id="${esc(t.id)}"><td class="title">${esc(t.label)}</td>
-        <td class="num"><input class="th" id="watch-${esc(t.id)}" data-k="watch_gap_pct" value="${t.watch_gap_pct}" inputmode="decimal" aria-label="Watch gap for ${esc(t.label)}"></td>
+        <td class="num${dirtyT(t, "watch_gap_pct")}"><input class="th" id="watch-${esc(t.id)}" data-k="watch_gap_pct" value="${tval(t, "watch_gap_pct")}" inputmode="decimal" aria-label="Watch gap for ${esc(t.label)}"></td>
         <td class="num">${Object.values(c).reduce((a, b) => a + b, 0)}</td></tr>`;
     }).join("");
     $("#agents tbody").innerHTML = s.agents.length ? s.agents.slice().sort((a, b) => a.agent.localeCompare(b.agent)).map(a => {
@@ -363,17 +401,50 @@
     }
     const tog = e.target.closest("button[data-toggle=paused]");
     if (tog) {
-      const id = tog.closest("tr").dataset.id, paused = tog.textContent.trim() === "Active";
-      if (SAMPLE) { toast("Saved (example)"); return; }
-      try { await api(`/api/targets/${id}`, { method: "POST", body: JSON.stringify({ paused }) }); toast(paused ? "Paused" : "Active"); load(); }
+      const id = tog.closest("tr").dataset.id, t = S.targets.find(x => x.id === id);
+      setTarget(t, "paused", !tval(t, "paused"));
+      return;
+    }
+    const chip = e.target.closest("button[data-rule]");
+    if (chip) {
+      const r = S.rules.rules.find(x => x.key === chip.dataset.rule);
+      const cur = r.key in pending.rules ? pending.rules[r.key] : r.value;
+      let next = !cur;
+      if (r.kind === "multi") {
+        const o = chip.dataset.opt;
+        next = cur.includes(o) ? cur.filter(x => x !== o) : cur.concat(o);
+        if (!next.length) { toast("Pick at least one"); return; }
+      }
+      setRule(r, next);
+      return;
+    }
+    if (e.target.id === "discard") { pending.rules = {}; pending.targets = {}; renderSettings(S); toast("Changes discarded"); return; }
+    if (e.target.id === "saverules") { await saveRules({ rules: pending.rules, targets: pending.targets }); return; }
+    const undo = e.target.closest("button[data-undo]");
+    if (undo) {
+      if (SAMPLE) { toast("Undone (example)"); return; }
+      try { const r = await api(`/api/rules/${undo.dataset.undo}/undo`, { method: "POST", body: "{}" }); toast(r.changed ? "Undone" : "Already that value"); load(); }
       catch (err) { toast(err.message); }
     }
   });
 
   document.addEventListener("change", async e => {
     if (e.target.id === "valtarget") { valTarget = e.target.value; page.values = 0; loadValues(); return; }
+    const rv = e.target.closest("input.rv");
+    if (rv) {
+      const r = S.rules.rules.find(x => x.key === rv.dataset.rule), raw = rv.value.trim().replace(/[$,%\s]/g, "");
+      if (raw === "" || Number.isNaN(Number(raw))) { toast("Enter a number"); rv.value = r.value; return; }
+      setRule(r, Number(raw));
+      return;
+    }
     const inp = e.target.closest("input.th");
     if (!inp) return;
+    if (!inp.classList.contains("ov")) {   // per-set threshold: waits for Save
+      const raw = inp.value.trim().replace(/[$,%\s]/g, ""), t = S.targets.find(x => x.id === inp.closest("tr").dataset.id);
+      if (raw === "" || Number.isNaN(Number(raw))) { toast("Enter a number"); inp.value = tval(t, inp.dataset.k); return; }
+      setTarget(t, inp.dataset.k, Number(raw));
+      return;
+    }
     const raw = inp.value.trim().replace(/[$,%\s]/g, "");
     if (raw !== "" && Number.isNaN(Number(raw))) { toast("Enter a number"); return; }
     if (SAMPLE) { toast("Saved (example)"); return; }
@@ -390,6 +461,27 @@
     } catch (err) { toast(err.message); }
   });
 
+  function setRule(r, v) {
+    if (JSON.stringify(v) === JSON.stringify(r.value)) delete pending.rules[r.key]; else pending.rules[r.key] = v;
+    renderSettings(S);
+  }
+  function setTarget(t, k, v) {
+    const p = pending.targets[t.id] = pending.targets[t.id] || {};
+    if (v === t[k]) delete p[k]; else p[k] = v;
+    if (!Object.keys(p).length) delete pending.targets[t.id];
+    renderSettings(S);
+  }
+  async function saveRules(body) {
+    if (SAMPLE) { pending.rules = {}; pending.targets = {}; renderSettings(S); toast("Saved (example)"); return; }
+    try {
+      const r = await api("/api/rules", { method: "POST", body: JSON.stringify(body) });
+      pending.rules = {}; pending.targets = {};
+      toast(r.changed ? `Saved ${r.changed} ${r.changed === 1 ? "change" : "changes"}. Listings re-scored.` : "Nothing changed");
+      load();
+    } catch (err) { toast(err.message); }
+  }
+  addEventListener("beforeunload", e => { if (nPending()) { e.preventDefault(); e.returnValue = ""; } });
+
   $("#bulksave").addEventListener("click", async () => {
     const text = $("#bulktext").value, out = $("#bulkresult");
     if (!text.trim()) { out.textContent = "Paste at least one line."; return; }
@@ -405,5 +497,5 @@
   addEventListener("hashchange", route);
   route();
   load();
-  if (!SAMPLE) setInterval(() => { if (!document.querySelector("input:focus, textarea:focus")) load(); }, 60000);
+  if (!SAMPLE) setInterval(() => { if (!nPending() && !document.querySelector("input:focus, textarea:focus")) load(); }, 60000);
 })();

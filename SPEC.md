@@ -45,7 +45,7 @@ the run itself honours `scan_interval_min`).
 | **Landed** | `landed.py` | Listing → USD landed cost per destination | — |
 | **Decider** | `decide.py` | Tier each listing: DEAL (push) / LISTED (push, no value) / WATCH / SEEN / REJECT, with the reason | — |
 | **Notifier** | `notify.py` | ntfy push with tap-to-dashboard + Open listing button; hourly cap; dedupe; price-drop re-push | push fails |
-| **Watchdog** | `watchdog.py` | Health of every agent, API budget, daily digest; pushes system alerts with cooldowns | — |
+| **Watchdog** | `watchdog.py` | Health of every agent, API budget, daily digest; pushes system alerts with cooldowns. Card values count as fresh by the last successful price refresh (cards TCGplayer stopped listing keep old dates and don't count) | — |
 
 ## Condition filter (Judy, 2026-11-01; `condition_filter` in settings)
 
@@ -115,6 +115,21 @@ With `condition_filter.enabled` off, the rules below run as before (every listin
     Lookups (seller condition, photo check, recheck) only spend what's left after reserving every remaining search of
     the day.
   - Dropping out of search results proves nothing (each search returns only the newest 200), so it isn't used.
+
+## Rules on the Settings page (Judy, 2026-11-01)
+
+Every buying rule is changed on the dashboard, not in a file: Settings → **Rules** lists them in plain words, grouped
+(What we buy · Buzzes · Whatnot · Sellers · per-set thresholds), with the technical limits (eBay calls a day, photo
+checks per scan and per day, photos per card, recheck and lookups per scan) under **Advanced**. The list of rules,
+their wording and their allowed ranges live in one place, `radar/rules.py`; the values stay in `config/settings.json`
+and `config/targets.json`.
+
+- Edits are held on the page until **Save**; nothing changes before. Save checks every value against its range (a
+  wrong one is refused with the reason and nothing is saved), writes the files, re-scores stored listings, and the next
+  scan uses the new rules. No restart.
+- Each saved change is written to a **change log** (what, old → new, when), shown under Settings with an **Undo** per
+  line. Undo is itself a logged change.
+- Leaving the page or the 60-second refresh never drops unsaved edits; the page says how many are unsaved.
 
 ## Markets
 

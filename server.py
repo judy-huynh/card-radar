@@ -4,7 +4,7 @@ It has no login: reach it over Tailscale only, never expose it to the public int
 import json, os, sys, time
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
-from radar import db, fx, overrides, pipeline
+from radar import db, fx, overrides, pipeline, rules
 from radar.config import ROOT, load_env, load_settings, load_targets, save_settings, save_targets
 
 DASH = os.path.join(ROOT, "dashboard")
@@ -70,6 +70,8 @@ def state(con):
         "budget": {"used": db.calls_today(con, "ebay"), "limit": settings["ebay"]["daily_call_budget"]},
         "markets": [m["id"] for m in settings["ebay"]["marketplaces"]],
         "condition_multipliers": settings["condition_multipliers"],
+        "rules": rules.current(settings),
+        "rule_log": db.rows(con, "SELECT * FROM rule_changes ORDER BY id DESC LIMIT 30"),
         "destinations": {k: {"label": v["label"], "tax_pct": v["tax_pct"], "intl_extra_pct": v["intl_extra_pct"]}
                          for k, v in settings["destinations"].items()},
     }
@@ -145,6 +147,24 @@ class Handler(SimpleHTTPRequestHandler):
             save_targets(targets)
             rescore(con, "target_id=?", (t["id"],))
             return self.send_json({"ok": True, "target": t})
+
+        if parts == ["api", "rules"] or (parts[:2] == ["api", "rules"] and len(parts) == 4 and parts[3] == "undo"):
+            if len(parts) == 4:
+                change = db.one(con, "SELECT * FROM rule_changes WHERE id=?", (int(parts[2]),))
+                if not change:
+                    return self.send_json({"error": "no such change"}, 404)
+                body = dict(zip(("rules", "targets"), rules.undo_request(change)))
+            try:
+                settings, targets, changes = rules.apply(load_settings(), load_targets(), body.get("rules"), body.get("targets"))
+            except ValueError as e:
+                return self.send_json({"error": str(e)}, 400)
+            if changes:
+                save_settings(settings)
+                save_targets(targets)
+                rules.log_changes(con, changes)
+                con.commit()
+                rescore(con, "source != 'tcgplayer'")
+            return self.send_json({"ok": True, "changed": len(changes)})
 
         if parts == ["api", "settings", "push_every_listing"]:
             if not isinstance(body.get("on"), bool):

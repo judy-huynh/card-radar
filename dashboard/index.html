@@ -73,16 +73,25 @@
       <button role="tab" data-push="0">Deals only</button>
     </div>
     <p class="note" id="pushnote"></p>
-    <h2>Alert thresholds</h2>
+    <h2>Rules</h2>
+    <p class="note">Change anything below, then press Save. The next scan uses the new rules; open listings are re-scored straight away.</p>
+    <div id="rules"></div>
+    <h3>Per-set thresholds</h3>
     <div class="tbl"><table id="targets">
       <thead><tr><th class="col-card">Target</th><th class="num">Push at gap ≥ %</th><th class="num">Min value</th><th class="num">Max landed</th><th>Status</th></tr></thead>
       <tbody></tbody></table></div>
-    <p class="note">Changes save immediately and re-score open listings.</p>
     <details class="more"><summary>More thresholds</summary>
       <div class="tbl"><table id="targets2">
         <thead><tr><th class="col-card">Target</th><th class="num">Watch at gap ≥ %</th><th class="num">Found · 7 days</th></tr></thead>
         <tbody></tbody></table></div>
     </details>
+    <details class="more" id="rulelog"><summary>Change log <span class="count" id="n-rulelog"></span></summary>
+      <div class="tbl"><table id="rulelogt">
+        <thead><tr><th>When</th><th class="col-card">Rule</th><th>Change</th><th></th></tr></thead>
+        <tbody></tbody></table></div>
+    </details>
+    <div class="savebar" id="savebar" hidden><span id="savecount"></span>
+      <span class="acts"><button type="button" id="discard">Discard</button><button type="button" class="primary" id="saverules">Save</button></span></div>
     <h2 id="system">System health</h2>
     <div class="tbl"><table id="agents">
       <thead><tr><th>Agent</th><th>Last OK</th><th>Last problem</th></tr></thead>

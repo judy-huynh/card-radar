@@ -63,7 +63,9 @@ def refresh(con, targets, fetch=_get):
 
 
 def age_hours(con):
-    r = db.one(con, "SELECT MIN(updated) u FROM cards WHERE target_id IS NOT NULL")
+    """Hours since the last successful price refresh. MAX, not MIN: a card TCGplayer stops listing keeps its old date
+    forever, and with MIN that made fresh values look stale (and re-downloaded the catalog every scan)."""
+    r = db.one(con, "SELECT MAX(updated) u FROM cards WHERE target_id IS NOT NULL")
     return _hours_since(r["u"]) if r and r["u"] else None
 
 

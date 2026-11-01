@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS agents (agent TEXT PRIMARY KEY, last_ok TEXT, last_er
 CREATE TABLE IF NOT EXISTS system_alerts (key TEXT PRIMARY KEY, last_sent TEXT);
 
 CREATE TABLE IF NOT EXISTS api_calls (day TEXT, source TEXT, n INTEGER, PRIMARY KEY(day, source));
+
+CREATE TABLE IF NOT EXISTS rule_changes (   -- Settings -> Rules change log; old/new are JSON
+  id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, what TEXT, key TEXT, old TEXT, new TEXT);
 """
 
 

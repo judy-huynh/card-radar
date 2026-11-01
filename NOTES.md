@@ -43,14 +43,21 @@ This repo is public, so never write keys, the ntfy topic or the Tailscale addres
 
 - **See the dashboard:** open the Tailscale link on any device signed into the same Tailscale account.
 - **If a change doesn't show:** press Cmd + Shift + R to force the browser to load a fresh copy.
-- **Change what buzzes Ben's phone:** Settings explains the rule; the push gap per set is editable there. The daily
-  limit, condition and photo rules live in `config/settings.json` (`condition_filter`, `notify.max_pushes_per_day`).
+- **Change a rule** (condition, photo check, buzzes per day, Whatnot share and fees, seller minimums, per-set gaps):
+  Settings → Rules, then Save. The change log under it shows every change with an Undo.
 - **Catch up on photo checks now:** `python3 -m radar photos 10` (never pushes; stays inside the eBay budget).
 - **Fix a value:** go to Values, pick the set, and type the Collectr number. Every gap recalculates straight away.
 
 ## Log
 
 ### 2026-11-01
+- **Rules on the Settings page.** Every buying rule is now edited on Settings → Rules and applied with one Save
+  (checked first; a wrong value saves nothing). The next scan uses it; open listings re-score at once. A change log
+  with Undo sits under it. Technical limits are under "Advanced". The rule list lives in `radar/rules.py`.
+- **"Card values are stale" was a false alarm.** 4 cards dropped out of TCGplayer's feed and kept old dates, and the
+  watchdog judged by the oldest card. It now uses the last successful refresh. This also stops the catalog being
+  re-downloaded every scan. ("eBay call budget running low" was real: today's calls ran out at 11:35 am.)
+- The empty Deals page now says what it's waiting for.
 - **Searches stopped at 11:35 am (and 8 pm–midnight on Oct 31).** The hourly "still for sale?" recheck looked up all
   522 open deals one by one and used the whole 5,000-call day. Fixed: lookups only spend what's left after reserving
   every remaining search of the day, and the recheck checks at most 40 deals an hour, longest-unchecked first.

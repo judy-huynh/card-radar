@@ -178,3 +178,26 @@ details[open] > summary{margin-bottom:10px}
   #deals .empty{grid-column:1/-1}
 }
 .radar.down{background:var(--bad)} .radar.down::after{border-color:var(--bad)}
+/* Settings -> Rules */
+h3{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:24px 0 8px}
+.rules{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);margin:0 0 14px}
+.rules h4{font-size:13px;font-weight:700;margin:0;padding:12px 16px 4px}
+.rule{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 16px;border-top:1px solid var(--line)}
+.rules h4 + .rule{border-top:0}
+.rule .lab{font-size:14px;font-weight:600}
+.rule .help{font-size:12px;color:var(--muted);margin-top:2px}
+.rule .ctl{flex:none;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.rule.dirty .lab::after{content:" · unsaved";color:var(--warn);font-weight:600;font-size:12px}
+.chip{font:inherit;font-size:13px;font-weight:600;padding:5px 12px;border-radius:999px;border:1px solid var(--line-strong);background:var(--card);color:var(--muted);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:#fff}
+.rule input.rv{width:96px;text-align:right;font:inherit;font-size:14px;padding:6px 10px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--card);color:var(--fg)}
+.rule .unit{font-size:13px;color:var(--muted);align-self:center}
+details.rules > summary{cursor:pointer;font-size:13px;font-weight:700;padding:12px 16px;list-style:none}
+.savebar{position:sticky;bottom:12px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0;
+  padding:10px 14px;border-radius:var(--radius);background:var(--fg);color:#fff;box-shadow:0 6px 24px rgba(17,19,23,.25)}
+.savebar[hidden]{display:none}
+.savebar button{font:inherit;font-size:14px;font-weight:600;padding:7px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.4);background:none;color:#fff;cursor:pointer}
+.savebar button.primary{background:#fff;color:var(--fg);border-color:#fff}
+td.dirty input, td.dirty button{outline:2px solid var(--warn);outline-offset:1px}
+@media (max-width:560px){.rule{flex-direction:column;align-items:flex-start}.rule .ctl{justify-content:flex-start}}
+.seg[hidden]{display:none}
