@@ -23,8 +23,10 @@ ask only on real forks (money, strategy, terms of service), decide routine thing
 - Matching changes need a test in `tests/test_match.py` with a real-looking title. Run the full suite:
   `python3 -m unittest discover -s tests -t .`
 - Catalog fixture (`tests/fixtures/cards.json`) is a snapshot of real tcgcsv data; refresh it only on purpose.
-- After dashboard changes: `python3 tools/make_sample.py && python3 tools/build_preview.py`, then republish
-  the preview artifact (https://claude.ai/artifact/KesV4xBus9Qa1gpn8SJv4n) from `dashboard/mock.html`.
+- After dashboard changes: restart the server (`launchctl kickstart -k gui/$(id -u)/com.judy.cardradar.server`)
+  and check the live dashboard on the iMac (localhost:8790, or the Tailscale link). Judy uses that, not a preview:
+  don't publish Claude artifacts of the dashboard (Judy, 2026-11-01). `tools/make_sample.py` +
+  `tools/build_preview.py` only refresh the example-data copy in the repo (`index.html`, `dashboard/mock.html`).
 - Python 3.9 stdlib only on the iMac. No pip installs.
 
 ## Dashboard principles (Judy, 2026-10-28: "overwhelming")
