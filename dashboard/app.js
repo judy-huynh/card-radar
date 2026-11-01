@@ -57,7 +57,7 @@
     card: l => ((l.name ? l.name + " " + l.number : l.title) || "").toLowerCase(),
     where: l => MP[l.marketplace] || l.marketplace || "",
     landed: l => l.landed_usd, value: l => l.value_usd, ret: profit,
-    cond: l => COND_RANK[l.condition] || 0,
+    cond: l => (l.grade_low ?? 0) * 10 + (COND_RANK[l.condition] || 0),
     tcg: c => c.market, collectr: c => c.override_usd,
   };
   const sortBy = { deals: ["ret", -1], feed: ["ret", -1], values: ["tcg", -1] };
@@ -128,7 +128,15 @@
     const c = l.condition;
     const cls = !c ? "warn" : c === "NM" ? "good" : c === "LP" ? "warn" : "bad";
     const label = { NM: "Near mint", LP: "Light play", MP: "Moderate play", HP: "Heavy play", DMG: "Damaged" }[c] || "Not stated";
-    return `<span class="pill ${cls}">${label}</span>`;
+    return `<span class="pill ${cls}">${label}</span>${gradeLine(l)}`;
+  }
+  // likely PSA range, so the deal can be checked against Collectr's price for that grade
+  function gradeLine(l) {
+    if (l.grade_low == null) return "";
+    const rng = l.grade_low === l.grade_high ? l.grade_low : `${l.grade_low}–${l.grade_high}`;
+    const src = l.grade_source === "photos" ? "photo check" : "seller's condition";
+    const note = l.grade_source === "photos" && l.grade_note ? `<div class="gnote">${esc(l.grade_note)}</div>` : "";
+    return `<div class="grade">Likely PSA ${rng}<span class="src">${src}</span></div>${note}`;
   }
 
   // ---- views -------------------------------------------------------------
@@ -175,7 +183,7 @@
     $("#log tbody").innerHTML = logRows.length ? logRows.map(a => `<tr>
       <td><div class="title">${a.name ? esc(a.name + " " + a.number) : esc(a.title)}</div><div class="meta">${esc((a.sent_at || "").slice(5, 16))}</div></td>
       <td class="num">${usd(a.landed_usd)}</td><td class="num">${usd(a.value_usd)}</td>
-      <td>${esc(a.decision)}</td><td>${esc(a.outcome || "—")}</td></tr>`).join("")
+      <td>${esc({ passed: "Passed", bought: "Bought", gone: "Gone" }[a.decision] || a.decision)}</td><td>${esc(a.outcome || "—")}</td></tr>`).join("")
       : `<tr><td colspan="5" class="empty">Nothing yet. Pass or Bought a deal and it moves here.</td></tr>`;
     pager("log", s.log.length);
   }

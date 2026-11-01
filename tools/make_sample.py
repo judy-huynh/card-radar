@@ -7,7 +7,8 @@ os.environ["RADAR_DB"] = os.path.join(tempfile.mkdtemp(), "sample.db")
 os.environ["RADAR_DRY"] = "1"
 os.environ["DASHBOARD_URL"] = "http://radar.example:8790"
 
-from radar import db, fx, run                      # noqa: E402
+from radar import db, fx, grading, pipeline, run   # noqa: E402
+from radar.config import load_settings, load_targets   # noqa: E402
 from radar.config import ROOT                      # noqa: E402
 from radar.scouts import Job                       # noqa: E402
 import server                                      # noqa: E402
@@ -68,6 +69,12 @@ s.batch = NEW
 run.cycle(con=con, scouts=[s], force=True, dry=True, log=quiet)   # live: the rest push
 for mp, n in (("EBAY_US", 184), ("EBAY_CA", 41), ("EBAY_GB", 63), ("EBAY_AU", 22), ("EBAY_DE", 17)):
     db.agent_ok(con, f"scout:{mp}", f"{n} results")
+# grade ranges: one photo check, the rest from the seller's eBay "Card Condition" pick
+grading.record_photos(con, "ex3", 6, 7, "Clean front; corners look sharp, light edge wear.")
+for i, pick in (("ex2", "Near mint or better"), ("ex4", "Near mint or better"), ("ex6", "Lightly played (Excellent)"),
+                ("ex7", "Moderately played (Very good)"), ("ex8", "Near mint or better")):
+    grading.record_seller(con, i, pick, load_settings())
+pipeline.rescore(con, load_targets(), fx.latest(con)[0], load_settings())
 done = db.one(con, "SELECT a.id FROM alerts a JOIN listings l USING(item_id) WHERE l.item_id='ex12'")
 if done:
     con.execute("UPDATE alerts SET decision='bought', decided_at=?, outcome='Arrived NM, listed at US$245' WHERE id=?", (db.now(), done["id"]))

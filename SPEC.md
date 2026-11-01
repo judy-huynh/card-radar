@@ -37,6 +37,7 @@ the run itself honours `scan_interval_min`).
 | **FX** | `fx.py` | Daily: ECB rates via Frankfurter (USD base) | rates older than 3 days |
 | **Scouts** | `scouts/*.py` | Search each marketplace × ship-to destination, newest first; one interface so new markets plug in | auth fails, errors, zero results 3 runs running |
 | **Matcher** | `match.py` | Title → exact catalog card + variant + grade + condition + red flags, with a confidence | — |
+| **Grader** | `grading.py` | Raw listing → likely PSA range (low–high) with its source: a photo check if one was done, else the seller's eBay "Card Condition" pick | — |
 | **Valuer** | `value.py` | Card → value (Collectr override > TCGplayer market), condition-adjusted, with source label | — |
 | **Landed** | `landed.py` | Listing → USD landed cost per destination | — |
 | **Decider** | `decide.py` | Tier each listing: DEAL (push) / LISTED (push, no value) / WATCH / SEEN / REJECT, with the reason | — |
@@ -53,9 +54,23 @@ the run itself honours `scan_interval_min`).
 - **WATCH**: within `watch_gap_pct` of value. Dashboard only.
 - **REJECT**: lot, proxy/custom/reprint, Japanese, wrong variant, graded (until graded values exist), seller under min feedback. Dashboard shows why.
 - **Condition discount** on value when the title says so: NM 1.0, LP 0.8, MP 0.6, HP 0.4, damaged 0.25, not stated 0.85.
+  The seller's eBay "Card Condition" pick counts too; when it and the title disagree, the worse one wins.
+- **Grade range** (Judy, 2026-10-31), so a deal can be checked against Collectr's price for that grade:
+  - Before a raw eBay listing pushes, its details are fetched once to read the seller's "Card Condition".
+  - That condition maps to a likely PSA range (`grade_from_condition` in settings: NM 7–8, LP 5–6, MP 3–4, HP 1–2).
+  - A photo check (Claude looks at the listing photos, written with `tools/grade.py`) replaces the seller's range.
+  - The Deals page shows the range and its source under the condition. Open / Pass / Bought stay manual.
+  - Until grade values exist (see Values by grade), the range is shown but doesn't change the value.
 - **Ambiguity is conservative**: when variant is unclear we value at the lower variant and never push low-confidence matches.
 - **Seeding**: the first time a market is scanned, everything already listed is stored without pushing; one summary push says how many deals are waiting on the dashboard.
 - **Caps**: at most `max_pushes_per_hour`; the overflow becomes one "N more on dashboard" push.
+- **Sold or ended listings** (Judy, 2026-10-31; a Dark Gengar sold on Oct 26 still came back in search on Oct 30):
+  - eBay's search can return listings that already sold, so search alone never proves a listing is for sale.
+  - Just before a push, the listing's own record is read (the same lookup as the seller's condition). Sold, out of
+    stock or ended means no push; it goes straight to History as "gone" with the reason.
+  - Every `recheck_open_min` minutes (default 60) each open Deals listing is looked up again; sold or ended ones move to
+    History as "gone". The recheck stays inside the daily eBay budget.
+  - Dropping out of search results proves nothing (each search returns only the newest 200), so it isn't used.
 
 ## Markets
 
@@ -75,9 +90,29 @@ Researched 2026-10-28 and not automated:
 
 ## Values
 
-Collectr is the value of record wherever Ben has entered it (one card at a time, or pasted in bulk on the dashboard).
-TCGplayer market fills every card without one. Collectr's terms forbid crawling, scraping or caching its content and
-reverse-engineering its app, and it has no public API, so its numbers are never pulled automatically.
+Collectr is the value of record wherever Ben has entered it. TCGplayer market fills every card without one. Collectr's
+terms forbid crawling, scraping or caching its content and reverse-engineering its app. Its API is by application only
+(getcollectr.com/api; personal use allowed, "Powered by Collectr." required); we haven't applied, so its numbers are
+never pulled automatically.
+
+### Values by grade (Judy, 2026-10-31)
+
+Collectr prices a card per grade, so a value is stored per **card × grade**: Raw, PSA 6, PSA 7, PSA 8, PSA 9, PSA 10.
+Each value carries its source (Collectr, Ours, PriceCharting) and the date it was checked.
+
+- **Where they're typed: the shared Google Sheet** "Card Radar · Collectr values by grade" (Judy's Drive, shared with Ben).
+  - Tab **Collectr** (live since 2026-10-31): one row per target card; Ben fills the grade columns and "Checked on".
+  - The two tabs below are added once Claude has the Google Sheets connector (Drive alone can't add tabs).
+  - Tab **Our prices**: same rows; our own price per grade (what we'd pay or sell at), when we have one.
+  - Tab **Deals to check**: the current deals worth a Collectr lookup, with the photo grade range for each.
+  - A Card ID column ties every row to exactly one catalog card, so nothing is matched by guesswork.
+- **How Card Radar reads them:** each tab is published to the web as CSV (File → Share → Publish to web). The CSV
+  links live in `.env`, never in the repo. Card Radar fetches them hourly into a `grade_values` table and re-scores
+  open listings. A sheet that can't be read fails loud (watchdog), and the last good values stay in use.
+- **Which value a listing uses:** Collectr > Ours > TCGplayer, for the grade that applies:
+  - a graded slab uses the value for its grade (this lets slabs become DEALs);
+  - a raw card uses Raw, with the condition discount; when a photo grade range exists, the low end of the range.
+- The Values page shows the grade values read-only, with a link to the sheet; the sheet is the one place to edit them.
 
 ## Done criteria
 
@@ -95,8 +130,9 @@ reverse-engineering its app, and it has no public API, so its numbers are never 
 - 2026-10-28: Collectr values are preferred; entered by hand or pasted, never scraped (see Values).
 
 - 2026-10-28: Ben is told about every listing of the six cards, not just deals (`push_every_listing`, switchable in Settings).
+- 2026-10-31: values are stored per grade and typed in the shared Google Sheet, not on the dashboard (see Values by grade).
 
 ## Open decisions (owner: Judy/Ben)
 
-- Graded cards push as LISTED while `push_every_listing` is on; whether they should count as DEALs needs graded values
-  (Collectr has them, TCGplayer does not).
+- Graded cards push as LISTED while `push_every_listing` is on. Once the sheet has grade values they can count as DEALs
+  (see Values by grade); until then they stay LISTED.

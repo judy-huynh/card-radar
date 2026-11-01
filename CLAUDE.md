@@ -33,6 +33,7 @@ ask only on real forks (money, strategy, terms of service), decide routine thing
 - Say a caveat once above a table, never on every row. Hide secondary detail behind <details>.
 
 ## Data sources and their limits
-- Values: tcgcsv.com (daily TCGplayer mirror). Collectr has no API; its values come in as manual overrides.
+- Values: tcgcsv.com (daily TCGplayer mirror). Collectr's API is by application only (not applied for); its values are
+  typed per grade in the shared Google Sheet (SPEC "Values by grade").
 - Listings: eBay Browse API (5,000 calls/day default). The cycle enforces the budget.
 - FX: Frankfurter (ECB), daily.

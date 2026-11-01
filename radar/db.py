@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS listings (
 CREATE INDEX IF NOT EXISTS listings_seen ON listings(last_seen);
 CREATE INDEX IF NOT EXISTS listings_tier ON listings(tier);
 
+CREATE TABLE IF NOT EXISTS grades (
+  item_id TEXT PRIMARY KEY, low INTEGER, high INTEGER, source TEXT,   -- likely PSA range; source = photos | seller
+  seller_condition TEXT, seller_text TEXT, note TEXT, checked_at TEXT);
+
 CREATE TABLE IF NOT EXISTS quotes (
   item_id TEXT, dest TEXT, ship REAL, ship_currency TEXT, ships INTEGER, seen TEXT, PRIMARY KEY(item_id, dest));
 
@@ -103,6 +107,21 @@ def count_call(con, source, n=1):
 def calls_today(con, source):
     r = one(con, "SELECT n FROM api_calls WHERE day=? AND source=?", (today(), source))
     return r["n"] if r else 0
+
+
+def open_deals(con):
+    """The listings on the Deals page (same filter as server.state): newest alert per listing, still open,
+    and day-one seeded listings only while they're DEALs."""
+    return rows(con, """SELECT a.id AS alert_id, l.item_id, l.marketplace, l.source, l.title, l.grade
+        FROM alerts a JOIN listings l USING(item_id)
+        WHERE a.decision='open' AND l.tier IN ('DEAL','LISTED') AND a.id IN (SELECT MAX(id) FROM alerts GROUP BY item_id)
+          AND NOT (a.kind = 'seeded' AND l.tier != 'DEAL')""")
+
+
+def mark_gone(con, item_id, why):
+    """A listing that can't be bought any more leaves the Deals page for History, with the reason."""
+    con.execute("UPDATE alerts SET decision='gone', decided_at=?, outcome=? WHERE item_id=? AND decision='open'",
+                (now(), why, item_id))
 
 
 def jdump(x):

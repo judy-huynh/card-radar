@@ -14,8 +14,10 @@ LISTING_COLS = """l.item_id, l.marketplace, l.title, l.url, l.image, l.price, l.
   l.feedback_pct, l.item_country, l.item_location, l.first_seen, l.last_seen, l.first_price, l.confidence, l.grade,
   l.flags, l.condition, l.value_usd, l.value_source, l.landed, l.best_dest, l.landed_usd, l.gap_pct, l.tier, l.reason,
   l.target_id, c.name, c.number, c.subtype, c.set_name, c.market AS tcg_market, c.low AS tcg_low, c.tcg_url,
-  c.updated AS tcg_updated, o.value_usd AS collectr_usd"""
-JOIN_CARD = "LEFT JOIN cards c ON c.card_key = l.card_key LEFT JOIN overrides o ON o.card_key = l.card_key"
+  c.updated AS tcg_updated, o.value_usd AS collectr_usd, g.low AS grade_low, g.high AS grade_high,
+  g.source AS grade_source, g.seller_condition, g.note AS grade_note"""
+JOIN_CARD = """LEFT JOIN cards c ON c.card_key = l.card_key LEFT JOIN overrides o ON o.card_key = l.card_key
+  LEFT JOIN grades g ON g.item_id = l.item_id"""
 
 
 def _decode(rows):

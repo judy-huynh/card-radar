@@ -1,7 +1,7 @@
 """One cycle: refresh catalog + FX when due -> scouts fetch -> evaluate every listing -> push -> watchdog.
 launchd calls this every few minutes; the cycle itself honours settings.scan_interval_min."""
 import json, os, time
-from . import catalog, db, fx, notify, pipeline, watchdog
+from . import catalog, db, fx, grading, notify, pipeline, watchdog
 from .config import load_env, load_settings, load_targets
 from .decide import PUSH_TIERS, RANK
 from .scouts import ScoutError
@@ -89,6 +89,7 @@ def cycle(con=None, scouts=None, force=False, dry=False, log=print):
 
     # ---- 2. evaluate every unique listing ---------------------------------------------------------
     by_id = {t["id"]: t for t in targets}
+    detailers = {s.name: s for s in scouts if hasattr(s, "details")}
     cards_cache, pending, seeded_deals, seeded_items = {}, [], 0, 0
     if found and not rates:
         run["errors"].append("no FX rates: listings stored but not scored")
@@ -97,15 +98,33 @@ def cycle(con=None, scouts=None, force=False, dry=False, log=print):
         cards = cards_cache.setdefault(t["group_id"], pipeline.cards_for(con, t["group_id"]))
         prev = db.one(con, "SELECT price, tier, pushed_tier FROM listings WHERE item_id=?", (item_id,))
         res = pipeline.evaluate(con, it, t, cards, rates, settings)
+        seeding = not prev and not (scopes_of[item_id] & seeded_scopes)
+        would_push = lambda r: r["tier"] in PUSH_TIERS and RANK[r["tier"]] > RANK.get((prev or {}).get("pushed_tier") or "REJECT", 0)
+        # about to buzz Ben: read the listing's own record. Search can return listings that already sold, and the
+        # seller's "Card Condition" pick (read once) can lower the value and gives the grade range.
+        detailer, gone = detailers.get(it["source"]), None
+        if detailer and not seeding and would_push(res) and db.calls_today(con, detailer.name) < budget:
+            try:
+                d = detailer.details(item_id, it["marketplace"])
+                db.count_call(con, detailer.name); run["calls"] += 1
+                gone = d.get("gone")
+                g = grading.get(con, item_id)
+                if not res["grade"] and not (g and g["seller_text"]):
+                    grading.record_seller(con, item_id, d.get("seller_condition"), settings)
+                    res = pipeline.evaluate(con, it, t, cards, rates, settings)
+            except ScoutError as e:
+                run["errors"].append(str(e))
         pipeline.save(con, it, res)
         if not prev:
             run["new"] += 1
-        seeding = not prev and not (scopes_of[item_id] & seeded_scopes)
         if seeding:
             seeded_items += 1
-        if res["tier"] in PUSH_TIERS and RANK[res["tier"]] > RANK.get((prev or {}).get("pushed_tier") or "REJECT", 0):
+        if would_push(res):
             kind = "new" if not prev else ("price_drop" if it["price"] < prev["price"] else "upgrade")
-            if seeding:
+            if gone:   # never buzz for something that can't be bought; it goes straight to History
+                _record_alert(con, item_id, kind=kind, pushed=0)
+                db.mark_gone(con, item_id, gone)
+            elif seeding:
                 seeded_deals += 1
                 _record_alert(con, item_id, kind="seeded", pushed=0)
             else:
@@ -136,6 +155,8 @@ def cycle(con=None, scouts=None, force=False, dry=False, log=print):
                      f"Stored {seeded_items} listings already for sale without pushing them. {seeded_deals} are deals; see the dashboard.",
                      base_url, dry, run)
 
+    recheck_open(con, detailers, settings, run, log)
+
     run["finished"] = db.now()
     con.execute("INSERT INTO runs(started, finished, calls, results, new_listings, pushes, errors, status) VALUES(?,?,?,?,?,?,?,?)",
                 (run["started"], run["finished"], run["calls"], run["results"], run["new"], run["pushes"],
@@ -155,6 +176,36 @@ def cycle(con=None, scouts=None, force=False, dry=False, log=print):
     return run
 
 
+def recheck_open(con, detailers, settings, run, log=print, force=False):
+    """Look up every open Deals listing again, every recheck_open_min minutes. Sold or ended ones move to History.
+    Search alone can't tell: it can keep returning a sold listing, and it drops older ones that are still for sale."""
+    if not detailers:
+        return 0
+    last = db.one(con, "SELECT last_ok FROM agents WHERE agent='recheck'")
+    if not force and last and _hours_since(last["last_ok"]) * 60 < settings["ebay"].get("recheck_open_min", 60) - 0.5:
+        return 0
+    budget, checked, gone = settings["ebay"]["daily_call_budget"], 0, 0
+    for r in db.open_deals(con):
+        det = detailers.get(r["source"])
+        if not det:
+            continue
+        if db.calls_today(con, det.name) >= budget:
+            run["errors"].append(f"recheck stopped: daily {det.name} budget used ({checked} checked)")
+            break
+        try:
+            d = det.details(r["item_id"], r["marketplace"])
+            db.count_call(con, det.name); run["calls"] += 1; checked += 1
+        except ScoutError as e:
+            run["errors"].append(str(e))
+            continue
+        if d.get("gone"):
+            db.mark_gone(con, r["item_id"], d["gone"]); gone += 1
+            log(f"recheck: gone · {d['gone']} · {r['title'][:60]}")
+    db.agent_ok(con, "recheck", f"{checked} open deals checked, {gone} gone")
+    con.commit()
+    return gone
+
+
 def _record_alert(con, item_id, kind, pushed, title=None, message=None):
     l = db.one(con, "SELECT tier, gap_pct, landed_usd, value_usd FROM listings WHERE item_id=?", (item_id,))
     cur = con.execute("""INSERT INTO alerts(item_id, kind, tier, sent_at, title, message, gap_pct, landed_usd, value_usd, pushed)
@@ -168,7 +219,7 @@ def _push_deal(con, item_id, kind, base_url, dry, run):
     l = db.one(con, "SELECT * FROM listings WHERE item_id=?", (item_id,))
     card = db.one(con, "SELECT * FROM cards WHERE card_key=?", (l["card_key"],))
     target = next((t for t in load_targets() if card and t["id"] == card["target_id"]), None)
-    title, message = notify.deal_message(l, card, kind, target and target["label"])
+    title, message = notify.deal_message(l, card, kind, target and target["label"], grading.get(con, item_id))
     alert_id = _record_alert(con, item_id, kind, pushed=0, title=title, message=message)
     big = l["gap_pct"] is not None and l["gap_pct"] <= -load_settings()["decide"]["big_deal_gap_pct"]
     try:

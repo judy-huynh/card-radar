@@ -34,7 +34,7 @@ def money(v):
 COND = {"NM": "Near mint", "LP": "Light play", "MP": "Moderate play", "HP": "Heavy play", "DMG": "Damaged"}
 
 
-def deal_message(l, card, kind, target_label=None):
+def deal_message(l, card, kind, target_label=None, grade=None):
     """Same words as the dashboard. Title = the verdict; body = what, where, money, seller."""
     landed = json.loads(l["landed"] or "{}")
     best = landed.get(l["best_dest"]) if l["best_dest"] else None
@@ -58,7 +58,8 @@ def deal_message(l, card, kind, target_label=None):
     if l["item_country"] and l["item_country"] not in where:
         where += f" (from {l['item_country']})"
     lines = [f"★ Match · {target_label}" if target_label else (card["set_name"] if card else ""),
-             f"{where} · " + (f"Graded {l['grade']}" if l["grade"] else COND.get(l["condition"], "Condition not stated"))]
+             f"{where} · " + (f"Graded {l['grade']}" if l["grade"] else COND.get(l["condition"], "Condition not stated"))
+             + (f" · likely PSA {grade['low']}–{grade['high']}" if grade and grade.get("low") is not None and not l["grade"] else "")]
     money_line = []
     if best:
         money_line.append(f"Landed {money(best['usd'])}{'*' if best['ship_estimated'] else ''} {l['best_dest']}")

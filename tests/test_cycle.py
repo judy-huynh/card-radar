@@ -29,7 +29,8 @@ class FakeScout:
         return [dict(x, dest=job.dest) for x in batch if x["target_id"] == job.target["id"]]
 
 
-class Cycle(unittest.TestCase):
+class CycleDB(unittest.TestCase):
+    """A throwaway database with the catalog fixture and FX rates loaded."""
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         os.environ["RADAR_DB"] = os.path.join(self.tmp, "t.db")
@@ -47,6 +48,9 @@ class Cycle(unittest.TestCase):
 
     def tearDown(self):
         os.environ.pop("RADAR_DB"); os.environ.pop("RADAR_DRY")
+
+
+class Cycle(CycleDB):
 
     def test_seed_then_live(self):
         seed = [listing("a1", "Aquapolis Kingdra H14/H32 Holo NM", 120.0),            # value ~214 -> deal

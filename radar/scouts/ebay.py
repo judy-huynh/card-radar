@@ -4,6 +4,7 @@ from . import Job, ScoutError
 
 TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token"
 SEARCH_URL = "https://api.ebay.com/buy/browse/v1/item_summary/search"
+ITEM_URL = "https://api.ebay.com/buy/browse/v1/item/"
 NAME = "ebay"
 
 
@@ -64,6 +65,35 @@ class EbayScout:
         except urllib.error.URLError as e:
             raise ScoutError(f"{job.marketplace} unreachable: {e.reason}")
         return [normalize(i, job) for i in data.get("itemSummaries", [])]
+
+    def details(self, item_id, marketplace):
+        """One listing's own record, which search results leave out or get wrong: the seller's "Card Condition" pick,
+        and whether it's still for sale (search kept returning a Dark Gengar four days after it sold)."""
+        req = urllib.request.Request(ITEM_URL + urllib.parse.quote(item_id), headers={
+            "Authorization": f"Bearer {self.token()}", "X-EBAY-C-MARKETPLACE-ID": marketplace, "Accept-Language": "en-US"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code in (404, 410):
+                return {"seller_condition": None, "gone": "Listing ended or removed on eBay"}
+            raise ScoutError(f"{marketplace} item {item_id} failed: {e}")
+        except urllib.error.URLError as e:
+            raise ScoutError(f"{marketplace} item {item_id} failed: {e.reason}")
+        cond = next((d for d in data.get("conditionDescriptors") or [] if d.get("values")), None)
+        return {"seller_condition": cond["values"][0].get("content") if cond else None, "gone": gone_reason(data)}
+
+
+def gone_reason(data, now=None):
+    """Why a listing can't be bought any more, or None while it's for sale."""
+    av = (data.get("estimatedAvailabilities") or [{}])[0]
+    end = data.get("itemEndDate")
+    when = time.strftime(" on %b %d", time.strptime(end[:10], "%Y-%m-%d")) if end else ""
+    if av.get("estimatedAvailabilityStatus") == "OUT_OF_STOCK":
+        return f"Sold on eBay{when}" if av.get("estimatedSoldQuantity") else "Out of stock on eBay"
+    if end and end[:19] < (now or time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())):
+        return f"Listing ended{when}"
+    return None
 
 
 def normalize(it, job):

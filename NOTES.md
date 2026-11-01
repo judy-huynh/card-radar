@@ -11,9 +11,16 @@ This repo is public, so never write keys, the ntfy topic or the Tailscale addres
 2. **Confirm alerts arrive.** *(Done 2026-10-30 23:27: the first scan after activation was clean. It found 24 new
    listings, pushed 7 to Ben, and had no sign-in errors.)* Still to check: Ben confirms that tapping an alert opens
    the right row.
-3. **Fact-check the listings.** Judy will ask for this. Go through the current deals and check that each one is
-   the right card, has the right value, has the right landed cost and a believable condition. Fix what's wrong at
-   the source (matcher, value, landed), not row by row.
+3. **Fact-check the listings.** *(Done 2026-10-31; see log.)* Source fixes still to build:
+   - ~~read eBay's "Card Condition" field~~ *(done 2026-10-31, with grade ranges)*;
+   - read "PL" (Played) as a condition;
+   - catch reprints and other languages the title hides (a 2026 "Stamped" Lugia 149/147 TAG 10 slab still lists);
+   - distrust a TCGplayer value far above its cheapest copy, or Unlimited above 1st Edition;
+   - make the "too cheap, check photos" warning compare against a value that isn't itself broken.
+4. **Values by grade in the shared sheet** (SPEC "Values by grade"). Needs the Google Sheets connector on in Claude
+   to restructure the sheet (tabs Collectr / Our prices / Deals to check). Then Judy publishes the tabs to the web as
+   CSV, the links go in `.env`, and Card Radar reads them hourly.
+5. **Share the sheet with Ben** (editor). Waiting on his email or Judy sharing it herself.
 
 ## Open questions
 
@@ -32,6 +39,36 @@ This repo is public, so never write keys, the ntfy topic or the Tailscale addres
 - **Fix a value:** go to Values, pick the set, and type the Collectr number. Every gap recalculates straight away.
 
 ## Log
+
+### 2026-10-31
+- **Sold listings were showing as deals.** The Dark Gengar that buzzed Ben as a DEAL had sold on Oct 26; eBay's
+  search still returned it on Oct 30. A Lugia PSA 6 sold tonight and stayed on Deals. Now:
+  - just before a push, the listing's own record is checked; sold or ended means no push, straight to History;
+  - every hour each open deal is looked up again (`recheck_open_min`); sold or ended ones move to History as "Gone";
+  - `python3 -m radar recheck` runs it on demand. Both sold listings are now in History.
+  - Not used: "dropped out of search". Each search returns only the newest 200, so older listings vanish while for sale.
+- **Grade ranges on deals.** Each raw deal shows a likely PSA range under its condition, with its source:
+  - the seller's eBay "Card Condition" pick (fetched once, just before a listing buzzes Ben), or
+  - a photo check, recorded with `python3 tools/grade.py photo ITEM LOW HIGH "note"`, which wins.
+  - The seller's pick also lowers the value when it's worse than the title. Phone alerts carry the range.
+  - Open / Pass / Bought were already on the Deals page; they stay manual.
+- **Deals cleaned up.** The 19 deals dropped by the photo check are marked passed, each with its reason (History).
+  Three of the 7 keepers left the Deals page: the seller's own condition put them under the deal line, and listings
+  seeded on day one only show on Deals while they're DEALs. They're in Leads.
+- **Fact-check of the 26 deals.** Landed-cost maths is right. The values were the problem:
+  - TCGplayer's market price is too high on thin cards. Dark Gengar Unlimited shows $1,064, above 1st Edition's
+    $1,000; PriceCharting raw is about $375. Geodude LC reverse shows $444; raw is about $129.
+- **Photo check of every deal.** 5 of 26 were the wrong card, which only the photos showed:
+  - Alakazam LC "reverse" was the regular holo;
+  - the Lugia crystal was the 2026 30th-anniversary reprint;
+  - two "Dark Gengars" were Japanese and one was Italian.
+- **Seller condition was ignored.** eBay's "Card Condition" field marked 7 "not stated" deals as moderately or
+  heavily played.
+- **Result:** 7 deals worth a Collectr check (5 Dark Gengar, Articuno, Marill). 19 dropped (wrong card, damaged, or
+  priced at or above raw value).
+- **Collectr API exists, by application only.** Judy chose the manual route for now.
+- **Values by grade:** Collectr prices per PSA grade, so values will be stored per card × grade and typed in the shared
+  Google Sheet (SPEC updated). Sheet created 2026-10-30 in Judy's Drive; 218 cards, 19 marked priority 1.
 
 ### 2026-10-30
 - **eBay is live.** The developer account is on Judy's real eBay account. The production keys needed the

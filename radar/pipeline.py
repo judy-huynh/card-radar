@@ -1,7 +1,7 @@
 """Evaluate one listing end to end: match -> value -> landed -> decide. Used by the scan and by the
 dashboard (when a Collectr value or threshold changes, open listings are re-scored without a new scan)."""
 import json
-from . import db, decide, landed, match, value
+from . import db, decide, grading, landed, match, value
 
 
 def cards_for(con, group_id):
@@ -15,6 +15,9 @@ def evaluate(con, listing, target, cards, rates, settings):
         card = next((c for c in cards if c["card_key"] == pinned), None)
         if card:
             m.update(card=card, card_key=pinned, confidence="high", reason=None)
+    g = grading.get(con, listing["item_id"])
+    if g and not m["grade"]:   # the seller's eBay "Card Condition" pick; when it and the title disagree, the worse wins
+        m["condition"] = grading.worse(m["condition"], g["seller_condition"])
     base, source = value.base_value(con, m["card"])
     if m["grade"]:   # a slab's value is not the raw card's value; we have no graded values, so don't pretend
         base, source = None, None

@@ -2,6 +2,7 @@
   python3 -m radar run [--force] [--dry]   one cycle (launchd calls this)
   python3 -m radar catalog                 refresh card values now
   python3 -m radar status                  agents, budget, last runs
+  python3 -m radar recheck                 look up every open deal on eBay now; sold or ended ones move to History
   python3 -m radar test-push               send a test notification
 """
 import sys
@@ -27,6 +28,14 @@ def main(argv):
         print("ebay calls today:", db.calls_today(con, "ebay"))
         for r in db.rows(con, "SELECT * FROM runs ORDER BY id DESC LIMIT 5"):
             print(r["started"], r["calls"], "calls", r["results"], "results", r["new_listings"], "new", r["pushes"], "pushes", r["status"])
+    elif cmd == "recheck":
+        from .config import load_settings
+        from .scouts.ebay import EbayScout
+        env, settings, con = load_env(), load_settings(), db.connect()
+        scout = EbayScout(env["EBAY_CLIENT_ID"], env["EBAY_CLIENT_SECRET"], settings)
+        r = {"calls": 0, "errors": []}
+        n = run.recheck_open(con, {scout.name: scout}, settings, r, force=True)
+        print(f"{r['calls']} checked, {n} gone", *r["errors"], sep="\n")
     elif cmd == "test-push":
         notify.push("Card Radar test", "Notifications work. Deals will look like this, with buttons to the listing and the dashboard.",
                     actions=[("Dashboard", load_env().get("DASHBOARD_URL", "http://localhost:8790"))])

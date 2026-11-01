@@ -121,6 +121,8 @@ td a.cardlink{color:inherit;text-decoration:none} td a.cardlink:hover{color:var(
 .tier.WATCH{background:var(--warn-soft);color:var(--warn)} .tier.SEEN{background:var(--hover);color:var(--seen)}
 .tier.REJECT{background:var(--bad-soft);color:var(--bad)}
 .reason{color:var(--muted);font-size:12px;margin-top:4px;max-width:34ch}
+.grade{font-size:13px;font-weight:600;margin-top:6px;white-space:nowrap}
+.gnote{color:var(--muted);font-size:12px;margin-top:2px;max-width:28ch}
 .reason.c-warn{color:var(--warn)}
 
 /* row states */

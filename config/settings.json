@@ -26,6 +26,7 @@
   },
   "ebay": {
     "daily_call_budget": 5000,
+    "recheck_open_min": 60,
     "limit": 200,
     "marketplaces": [
       {
@@ -73,6 +74,13 @@
     "big_deal_gap_pct": 35,
     "push_tcgplayer_lows": false,
     "push_every_listing": true
+  },
+  "grade_from_condition": {
+    "NM": [7, 8],
+    "LP": [5, 6],
+    "MP": [3, 4],
+    "HP": [1, 2],
+    "DMG": [1, 1]
   },
   "condition_multipliers": {
     "NM": 1.0,
