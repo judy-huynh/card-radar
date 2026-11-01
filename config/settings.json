@@ -78,7 +78,7 @@
   },
   "condition_filter": {
     "enabled": true,
-    "raw_only": true,
+    "raw_only": false,
     "seller_must_say": [
       "NM"
     ],
@@ -89,11 +89,10 @@
       "max_images": 8,
       "timeout_s": 240,
       "max_per_run": 4,
-      "max_per_day": 40,
+      "max_per_day": 5,
       "max_attempts": 2,
       "allowed_whitening": [
-        "none",
-        "light"
+        "none"
       ]
     },
     "lookups_per_run": 30

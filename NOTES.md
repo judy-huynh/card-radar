@@ -6,7 +6,16 @@ This repo is public, so never write keys, the ntfy topic or the Tailscale addres
 
 ## Next steps (in order)
 
-0. **Condition filter live** (SPEC "Condition filter", 2026-11-01): raw near-mint cards only, photo-checked by Claude,
+0. **Next session: test eBay Canada on its own, with Judy's new instructions** (she'll give them at the start).
+   Where things stand at the end of 2026-11-01 (6:15 pm):
+   - eBay searching was paused all afternoon (the day's 5,000 calls ran out at 11:35 am); it restarts after midnight.
+     Tonight's scans are the first real run of the condition filter and photo check.
+   - Rules Judy set on Settings (see Change log there): photo check **on, 5 a day**; back-corner whitening **none
+     only**; graded slabs **not rejected** (they show in Leads but can't buzz). Buzzes: 5 a day.
+   - Open choice on photo-check timing: the 5 checks may all go in the first scans after midnight. Options offered:
+     1 check per scan (Settings → Advanced), or a once-a-day pick of the 5 best (small build). Judy hasn't chosen.
+   - eBay Canada today: marketplace `EBAY_CA`, ships to Ontario only, category 183454 (settings `ebay.marketplaces`).
+1. **Condition filter live** (SPEC "Condition filter", 2026-11-01): raw near-mint cards only, photo-checked by Claude,
    at most 5 pushes a day ranked by profit after Whatnot fees. To do:
    - ask our Whatnot partner which price range sells best live and what share of value a card fetches on stream
      (`whatnot.realize_pct`, now 100%);
