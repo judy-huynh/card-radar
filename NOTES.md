@@ -6,6 +6,14 @@ This repo is public, so never write keys, the ntfy topic or the Tailscale addres
 
 ## Next steps (in order)
 
+0. **Condition filter live** (SPEC "Condition filter", 2026-11-01): raw near-mint cards only, photo-checked by Claude,
+   at most 5 pushes a day ranked by profit after Whatnot fees. To do:
+   - ask our Whatnot partner which price range sells best live and what share of value a card fetches on stream
+     (`whatnot.realize_pct`, now 100%);
+   - Claude looks up Collectr values for each photo-passed deal in our sessions and records them in the sheet;
+   - check the first night's photo checks in the scan log (they run from the background job; tested in the same
+     bare environment, not yet from launchd itself).
+
 1. **Phone alerts match the dashboard.** ntfy titles and text use "Potential return" and "★ Match", the same
    words as the dashboard. *(Done 2026-10-30; see log.)*
 2. **Confirm alerts arrive.** *(Done 2026-10-30 23:27: the first scan after activation was clean. It found 24 new
@@ -13,8 +21,9 @@ This repo is public, so never write keys, the ntfy topic or the Tailscale addres
    the right row.
 3. **Fact-check the listings.** *(Done 2026-10-31; see log.)* Source fixes still to build:
    - ~~read eBay's "Card Condition" field~~ *(done 2026-10-31, with grade ranges)*;
-   - read "PL" (Played) as a condition;
-   - catch reprints and other languages the title hides (a 2026 "Stamped" Lugia 149/147 TAG 10 slab still lists);
+   - ~~read "PL" (Played) as a condition~~ *(done 2026-11-01)*;
+   - ~~catch reprints the title hides~~ *(the photo check caught 3 on 2026-11-01: a Celebrations Lugia, a Pikachu-30
+     stamped Lugia, an Arceus promo; slabs are out anyway)*; other languages still possible;
    - distrust a TCGplayer value far above its cheapest copy, or Unlimited above 1st Edition;
    - make the "too cheap, check photos" warning compare against a value that isn't itself broken.
 4. **Values by grade in the shared sheet** (SPEC "Values by grade"). Needs the Google Sheets connector on in Claude
@@ -26,8 +35,7 @@ This repo is public, so never write keys, the ntfy topic or the Tailscale addres
 
 - **Southern Islands:** Judy's original list said "Southern Islands *Reverse Holo*". The target currently includes
   the plain (non-holo) versions too. Narrow it to reverse holo only?
-- **Graded slabs:** they push as "LISTED" with no return, because we have no graded values. Keep pushing them, or
-  only push raw cards?
+- **Whatnot:** which price range sells best live, and what share of value does a card fetch on stream?
 - **Collectr values:** TCGplayer's market price looks high for some cards (Dark Gengar at $1,064; Geodude 77/110 at
   $444, while the cheapest copy is $94). Ben's Collectr numbers on the Values page fix this.
 
@@ -35,10 +43,31 @@ This repo is public, so never write keys, the ntfy topic or the Tailscale addres
 
 - **See the dashboard:** open the Tailscale link on any device signed into the same Tailscale account.
 - **If a change doesn't show:** press Cmd + Shift + R to force the browser to load a fresh copy.
-- **Change what buzzes Ben's phone:** go to Settings, then "What buzzes Ben's phone" (every new listing, or deals only).
+- **Change what buzzes Ben's phone:** Settings explains the rule; the push gap per set is editable there. The daily
+  limit, condition and photo rules live in `config/settings.json` (`condition_filter`, `notify.max_pushes_per_day`).
+- **Catch up on photo checks now:** `python3 -m radar photos 10` (never pushes; stays inside the eBay budget).
 - **Fix a value:** go to Values, pick the set, and type the Collectr number. Every gap recalculates straight away.
 
 ## Log
+
+### 2026-11-01
+- **Searches stopped at 11:35 am (and 8 pm–midnight on Oct 31).** The hourly "still for sale?" recheck looked up all
+  522 open deals one by one and used the whole 5,000-call day. Fixed: lookups only spend what's left after reserving
+  every remaining search of the day, and the recheck checks at most 40 deals an hour, longest-unchecked first.
+- **Condition filter (Judy: the edge is ungraded cards in great condition, flipped live on Whatnot).** Now:
+  - graded slabs are rejected; the seller must call the card near mint (title and eBay "Card Condition", worse wins);
+  - a raw listing that would be a deal at near mint gets one eBay lookup (seller pick + photos + still for sale);
+  - near-mint ones get a photo check: Claude Code on the iMac (the subscription, not a separate bill) looks at up to
+    8 photos and answers fixed questions; our rule fails a crease, bend, heavy back-corner whitening or the wrong
+    card, and calls doubt "unsure". It runs restricted (Read only, inside a throwaway photo folder, no connectors);
+  - only photo-passed deals push, best profit after Whatnot fees first (8% + 2.9% + $0.30), at most 5 a day;
+  - Deals, pushes and Settings say so; History shows "Passed: rules" with the reason.
+- **First real photo checks:** 3 of the 3 near-mint under-value listings were reprints or the wrong card (a
+  Celebrations Lugia, a Pikachu-30 stamped Lugia, an Arceus promo). Two more had sold or ended.
+- **Deals re-sorted** (`tools/resort.py`): the 522 open deals were moved to History as "Passed: doesn't meet condition
+  rules" with the reason (graded, played, photo check). Nothing deleted. The Deals page starts empty; new deals arrive
+  as scans find raw near-mint cards that pass.
+- Also: "PL" reads as played, "AOG" as a grading company.
 
 ### 2026-10-31
 - **Sold listings were showing as deals.** The Dark Gengar that buzzed Ben as a DEAL had sold on Oct 26; eBay's

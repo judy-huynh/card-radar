@@ -41,7 +41,11 @@ def deal_message(l, card, kind, target_label=None, grade=None):
     ret = None if l["gap_pct"] is None or l["value_usd"] is None or l["landed_usd"] is None else l["value_usd"] - l["landed_usd"]
     name = f"{card['name']} {card['number']}" if card else l["title"][:60]
     buying = l["buying"] or ""
-    if l["tier"] == "DEAL" and ret is not None:
+    flip = l.get("flip_usd")
+    photo_passed = bool(grade and grade.get("photo_verdict") == "pass")
+    if l["tier"] == "DEAL" and photo_passed and flip is not None:
+        title = f"DEAL · {'+' if flip >= 0 else '−'}{money(abs(flip))} after Whatnot fees · {name}"
+    elif l["tier"] == "DEAL" and ret is not None:
         title = f"DEAL · +{money(ret)} potential return · {name}"
     elif ret is not None:
         title = f"LISTED · {name} · " + (f"+{money(ret)} potential return" if ret >= 0 else f"{money(-ret)} over value")
@@ -67,6 +71,10 @@ def deal_message(l, card, kind, target_label=None, grade=None):
         money_line.append(f"Value {money(l['value_usd'])} {l['value_source'] or ''}".strip())
     if money_line:
         lines.append(" · ".join(money_line))
+    if photo_passed:
+        lines.append(f"Photos pass: {grade.get('photo_reason') or ''}".strip())
+    if l["value_usd"] is not None and (l["value_source"] or "").startswith("TCGplayer"):
+        lines.append("Value is TCGplayer's; not checked on Collectr yet")
     seller = f" · seller {l['feedback']:,} feedback" if l["feedback"] is not None else ""
     lines.append(f"Ask {l['price']:,.2f} {l['currency']}{seller}")
     if "check photos" in (l["reason"] or ""):

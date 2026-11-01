@@ -30,6 +30,10 @@ def issues(con, settings, run):
     recent = db.rows(con, "SELECT results, calls FROM runs WHERE calls > 0 ORDER BY id DESC LIMIT ?", (w["zero_result_runs"],))
     if len(recent) == w["zero_result_runs"] and all(r["results"] == 0 for r in recent):
         out.append(("zero_results", "Searches return nothing", f"{w['zero_result_runs']} cycles in a row found zero listings. A query or the API may have changed."))
+    ph = db.one(con, "SELECT last_ok, last_error, last_error_at FROM agents WHERE agent='photos'")
+    if ph and ph["last_error_at"] and (not ph["last_ok"] or ph["last_error_at"] >= ph["last_ok"]):   # a failure ends the stage
+        out.append(("photos_down", "Photo check isn't working",
+                    f"No deals can push until it works again. Is Claude Code signed in on the iMac? {ph['last_error'][:160]}"))
     budget = settings["ebay"]["daily_call_budget"]
     used = db.calls_today(con, "ebay")
     if used >= budget * w["budget_warn_pct"] / 100:

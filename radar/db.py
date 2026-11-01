@@ -58,6 +58,21 @@ CREATE TABLE IF NOT EXISTS api_calls (day TEXT, source TEXT, n INTEGER, PRIMARY 
 """
 
 
+# columns added after the first release: (table, column, type). connect() adds any that are missing.
+COLUMNS = [
+    ("listings", "flip_usd", "REAL"),            # profit after Whatnot fees (ranking only)
+    ("grades", "seller_checked_at", "TEXT"),     # when the seller's "Card Condition" was read, even if blank
+    ("grades", "gone", "TEXT"),                  # why it can't be bought any more (sold / ended), from eBay's record
+    ("grades", "avail_at", "TEXT"),              # last time eBay's record was read
+    ("grades", "photo_verdict", "TEXT"),         # pass | fail | unsure
+    ("grades", "photo_reason", "TEXT"),
+    ("grades", "photo_detail", "TEXT"),          # Claude's answers, JSON
+    ("grades", "photo_at", "TEXT"),
+    ("grades", "photo_attempts", "INTEGER DEFAULT 0"),
+    ("grades", "photo_error", "TEXT"),
+]
+
+
 def now():
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -71,6 +86,12 @@ def connect(path=None):
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     con.executescript(SCHEMA)
+    for table, col, typ in COLUMNS:
+        if col not in {r[1] for r in con.execute(f"PRAGMA table_info({table})")}:
+            con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+            if (table, col) == ("grades", "seller_checked_at"):   # seller picks read before this column existed
+                con.execute("UPDATE grades SET seller_checked_at = checked_at WHERE seller_text IS NOT NULL")
+    con.commit()
     return con
 
 

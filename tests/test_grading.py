@@ -2,6 +2,7 @@
 import unittest
 from radar import db, grading, notify, run
 from radar.config import load_settings
+from tests.helpers import legacy_settings
 from tests.test_cycle import CycleDB, FakeScout, listing
 
 SETTINGS = load_settings()
@@ -60,7 +61,7 @@ class DetailScout(FakeScout):
 
 class InTheScan(CycleDB):
     def scan(self, scout):
-        return run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None)
+        return run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None, settings=legacy_settings())
 
     def test_seller_pick_lowers_value_and_rides_the_push(self):
         seed = [listing("k0", "Aquapolis Kingdra H14/H32 Holo", 230.0)]

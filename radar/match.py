@@ -7,7 +7,7 @@ Principles
 import re
 from .text import norm, norm_num
 
-GRADE = re.compile(r"\b(psa|bgs|cgc|sgc|beckett|ace|tag|pca|ags)\s*(?:gem\s*mint|gem\s*mt|mint|nm[\s-]*mt|pristine|black\s*label)?\s*(10|9\.5|9|8\.5|8|7\.5|7|6\.5|6|5\.5|5|4|3|2|1)\b", re.I)
+GRADE = re.compile(r"\b(psa|bgs|cgc|sgc|beckett|ace|tag|pca|ags|aog)\s*(?:gem\s*mint|gem\s*mt|mint|nm[\s-]*mt|pristine|black\s*label)?\s*(10|9\.5|9|8\.5|8|7\.5|7|6\.5|6|5\.5|5|4|3|2|1)\b", re.I)
 GRADED_WORD = re.compile(r"\b(graded|slab|slabbed)\b", re.I)
 
 FLAGS = [
@@ -23,7 +23,7 @@ CONDITIONS = [  # checked in order; first hit wins
     ("DMG", re.compile(r"\b(damaged|dmg|crease|creased|creases|water damage|poor|bent|torn|ink|tinte)\b")),
     ("HP", re.compile(r"\b(heavily played|heavy played|heavy play|hp|stark bespielt|read description|see description)\b")),
     ("LP", re.compile(r"\b(lightly played|light play|light wear|leicht bespielt)\b")),   # before MP's bare "played"
-    ("MP", re.compile(r"\b(moderately played|moderate play|mp|played|good|gespielt|gut|gutem)\b")),
+    ("MP", re.compile(r"\b(moderately played|moderate play|mp|pl|played|good|gespielt|gut|gutem)\b")),
     ("LP", re.compile(r"\b(lightly played|light play|light wear|lp|excellent|exc|bespielt|leicht bespielt)\b")),
     ("NM", re.compile(r"\b(near mint|nm|nm m|mint|pack fresh)\b")),
 ]

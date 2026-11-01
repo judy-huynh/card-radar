@@ -76,12 +76,14 @@ class EbayScout:
                 data = json.load(r)
         except urllib.error.HTTPError as e:
             if e.code in (404, 410):
-                return {"seller_condition": None, "gone": "Listing ended or removed on eBay"}
+                return {"seller_condition": None, "gone": "Listing ended or removed on eBay", "images": []}
             raise ScoutError(f"{marketplace} item {item_id} failed: {e}")
         except urllib.error.URLError as e:
             raise ScoutError(f"{marketplace} item {item_id} failed: {e.reason}")
         cond = next((d for d in data.get("conditionDescriptors") or [] if d.get("values")), None)
-        return {"seller_condition": cond["values"][0].get("content") if cond else None, "gone": gone_reason(data)}
+        images = [(data.get("image") or {}).get("imageUrl")] + [i.get("imageUrl") for i in data.get("additionalImages") or []]
+        return {"seller_condition": cond["values"][0].get("content") if cond else None, "gone": gone_reason(data),
+                "images": [u for u in images if u]}
 
 
 def gone_reason(data, now=None):

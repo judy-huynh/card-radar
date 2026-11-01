@@ -45,15 +45,45 @@ def record_seller(con, item_id, text, settings):
     """Store the seller's pick. Keeps an existing photo range; only fills the seller fields."""
     code = seller_code(text)
     low, high = from_condition(code, settings)
-    con.execute("""INSERT INTO grades(item_id, low, high, source, seller_condition, seller_text, checked_at)
-                   VALUES(?,?,?,?,?,?,?)
+    con.execute("""INSERT INTO grades(item_id, low, high, source, seller_condition, seller_text, checked_at, seller_checked_at)
+                   VALUES(?,?,?,?,?,?,?,?)
                    ON CONFLICT(item_id) DO UPDATE SET seller_condition=excluded.seller_condition,
-                     seller_text=excluded.seller_text,
+                     seller_text=excluded.seller_text, seller_checked_at=excluded.seller_checked_at,
                      low=CASE WHEN grades.source='photos' THEN grades.low ELSE excluded.low END,
                      high=CASE WHEN grades.source='photos' THEN grades.high ELSE excluded.high END,
                      source=CASE WHEN grades.source='photos' THEN 'photos' ELSE excluded.source END""",
-                (item_id, low, high, "seller" if code else None, code, (text or "")[:200], db.now()))
+                (item_id, low, high, "seller" if code else None, code, (text or "")[:200], db.now(), db.now()))
     return code
+
+
+def record_availability(con, item_id, gone):
+    """eBay's own record was just read: still for sale (gone=None) or why not."""
+    con.execute("""INSERT INTO grades(item_id, gone, avail_at) VALUES(?,?,?)
+                   ON CONFLICT(item_id) DO UPDATE SET gone=excluded.gone, avail_at=excluded.avail_at""",
+                (item_id, gone, db.now()))
+
+
+def record_photo_check(con, item_id, verdict, reason, detail, low=None, high=None):
+    """A finished photo check. Its PSA range replaces the seller's (source 'photos')."""
+    con.execute("""INSERT INTO grades(item_id, photo_verdict, photo_reason, photo_detail, photo_at, photo_error, photo_attempts)
+                   VALUES(?,?,?,?,?,NULL,1)
+                   ON CONFLICT(item_id) DO UPDATE SET photo_verdict=excluded.photo_verdict, photo_reason=excluded.photo_reason,
+                     photo_detail=excluded.photo_detail, photo_at=excluded.photo_at, photo_error=NULL,
+                     photo_attempts=COALESCE(grades.photo_attempts, 0) + 1""",
+                (item_id, verdict, reason, db.jdump(detail), db.now()))
+    if low is not None and high is not None:
+        record_photos(con, item_id, low, high, reason)
+
+
+def record_photo_error(con, item_id, err, counts=True):
+    """A photo check that couldn't run. counts=True (this listing's photos were unusable) uses one of its max_attempts;
+    counts=False (Claude Code itself failed: signed out, offline) only notes the error, so the listing keeps its tries."""
+    n = 1 if counts else 0
+    con.execute("""INSERT INTO grades(item_id, photo_error, photo_at, photo_attempts) VALUES(?,?,?,?)
+                   ON CONFLICT(item_id) DO UPDATE SET photo_error=excluded.photo_error,
+                     photo_at=COALESCE(excluded.photo_at, grades.photo_at),
+                     photo_attempts=COALESCE(grades.photo_attempts, 0) + ?""",
+                (item_id, str(err)[:300], db.now() if counts else None, n, n))
 
 
 def record_photos(con, item_id, low, high, note):

@@ -2,7 +2,7 @@
 import json, os, tempfile, unittest
 from radar import db, notify, run
 from radar.scouts import Job
-from tests.helpers import CARDS
+from tests.helpers import CARDS, legacy_settings
 
 RATES = {"amount": 1.0, "base": "USD", "date": "2026-10-28", "rates": {"CAD": 1.4, "GBP": 0.75, "EUR": 0.9, "AUD": 1.42, "JPY": 158}}
 
@@ -59,12 +59,12 @@ class Cycle(CycleDB):
                        listing("a4", "Lot of 10 Aquapolis holo", 200.0),                # reject
                        listing("a5", "Aquapolis Kingdra H14/H32 Holo", 150.0, seller_fb=2)]  # reject: seller
         scout = FakeScout([seed, live])
-        r1 = run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None)
+        r1 = run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None, settings=legacy_settings())
         self.assertEqual(r1["pushes"], 0, "first scan of a market must not push individual deals")
         self.assertTrue(any("seeded" in p["title"] for p in notify.SENT))
         notify.SENT.clear()
 
-        r2 = run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None)
+        r2 = run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None, settings=legacy_settings())
         deals = [p for p in notify.SENT if p["title"].startswith("DEAL")]
         self.assertEqual(len(deals), 1, notify.SENT)
         self.assertIn("Lugia", deals[0]["title"])
@@ -80,14 +80,14 @@ class Cycle(CycleDB):
         notify.SENT.clear()
         scout.batches.append(live + [listing("lc1", "Charizard 003/110 Legendary Collection Reverse Holo", 6400.0, tid="lc-reverse")])
         scout.calls = 4 * (len(scout.batches) - 1)
-        run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None)
+        run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None, settings=legacy_settings())
         listed = [p for p in notify.SENT if p["title"].startswith("LISTED")]
         self.assertEqual(len(listed), 1, notify.SENT)
         self.assertIn("Charizard", listed[0]["title"])
         self.assertFalse([p for p in notify.SENT if p["title"].startswith("DEAL")], "same listing must not push twice")
 
         notify.SENT.clear()
-        run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None)
+        run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None, settings=legacy_settings())
         self.assertFalse([p for p in notify.SENT if p["title"].startswith("DEAL")], "same listing must not push twice")
 
     def test_missing_keys_alerts_once(self):

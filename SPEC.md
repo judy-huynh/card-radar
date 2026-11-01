@@ -2,14 +2,16 @@
 
 ## End goal
 
-Ben never searches for these cards by hand again. When one of the six targets is listed for sale anywhere we can see,
-Ben's phone buzzes (ntfy). By default every new listing pushes, whatever the price (Judy, 2026-10-28); a dashboard
-switch narrows it to deals only. Each push carries:
+Ben never searches for these cards by hand again. The edge is **ungraded cards in great condition**, bought under
+value and flipped live on Whatnot by our partner (Judy, 2026-11-01). Card Radar finds them, throws out everything that
+isn't near mint, checks the photos itself, and buzzes Ben's phone (ntfy) for at most 5 a day: the best flips first.
+Each push carries:
 
 - **what** it is, matched to an exact card: set, name, number, variant (holo / reverse holo / 1st edition)
 - **what it costs landed**: ask + shipping + FX + tax/duty estimate, to Canada and to NYC, cheaper one first
 - **what it's worth**: Collectr value if Ben has entered one, otherwise TCGplayer market (the main source Collectr itself prices from)
-- **the gap**: landed vs value, after a condition discount
+- **the gap**: landed vs value, and the profit after Whatnot's fees
+- **the photo check**: pass, the likely PSA range, and one plain sentence on what was seen
 - one tap → the listing; one tap → the dashboard row
 
 Everything the system sees, pushes, rejects, and decides is visible on the dashboard
@@ -38,11 +40,48 @@ the run itself honours `scan_interval_min`).
 | **Scouts** | `scouts/*.py` | Search each marketplace × ship-to destination, newest first; one interface so new markets plug in | auth fails, errors, zero results 3 runs running |
 | **Matcher** | `match.py` | Title → exact catalog card + variant + grade + condition + red flags, with a confidence | — |
 | **Grader** | `grading.py` | Raw listing → likely PSA range (low–high) with its source: a photo check if one was done, else the seller's eBay "Card Condition" pick | — |
+| **Photo checker** | `photos.py` | Near-mint candidate → Claude (Claude Code on the iMac, read-only) looks at every listing photo for creases, bends, back-corner whitening; our rule turns its answers into pass / fail / unsure | Claude Code can't run or isn't signed in |
 | **Valuer** | `value.py` | Card → value (Collectr override > TCGplayer market), condition-adjusted, with source label | — |
 | **Landed** | `landed.py` | Listing → USD landed cost per destination | — |
 | **Decider** | `decide.py` | Tier each listing: DEAL (push) / LISTED (push, no value) / WATCH / SEEN / REJECT, with the reason | — |
 | **Notifier** | `notify.py` | ntfy push with tap-to-dashboard + Open listing button; hourly cap; dedupe; price-drop re-push | push fails |
 | **Watchdog** | `watchdog.py` | Health of every agent, API budget, daily digest; pushes system alerts with cooldowns | — |
+
+## Condition filter (Judy, 2026-11-01; `condition_filter` in settings)
+
+The money is in raw cards in great condition: no creases, not bent, at most light white spots on the blue back corners.
+A human can't read 300 listings a day, so each listing goes through steps that cost more the further it gets, and only
+what survives every step reaches Ben:
+
+1. **Raw only.** A graded slab (PSA, BGS, CGC, SGC, TAG, ACE, AOG… or "graded"/"slab") is rejected: "graded: we buy raw
+   cards only". A grade in the title is still shown in Leads.
+2. **Near mint only, in the seller's words.** The title's condition and the seller's eBay "Card Condition" pick both
+   count, the worse wins (`seller_must_say`, default NM). Anything lower is rejected with what it said. A seller who
+   picked no condition stays in Leads ("seller gave no condition"), never pushed.
+3. **Worth checking.** Only a raw listing that would be a DEAL if it were near mint costs an eBay lookup. One lookup
+   gives the seller's pick, the photos and whether it's still for sale; it's done after the search, for every such
+   listing seen in the last day (so one that drops out of the newest-200 search still gets checked), best Whatnot
+   profit first, at most `lookups_per_run` a scan.
+4. **Photo check.** A near-mint DEAL candidate's photos (up to `max_images`) are read by Claude via Claude Code on the
+   iMac, which comes out of the Claude subscription, not a separate API bill. Listing photos and titles are untrusted,
+   so Claude runs restricted: the Read tool only, confined to a throwaway folder holding just the photos (it can't
+   read `.env` or anything else), no connectors, no user settings, answers cut to 240 characters. It answers fixed questions (right card? back shown? crease? bend? back-corner
+   whitening none/light/heavy? likely PSA range? one plain sentence). **Our rule, not Claude, decides:**
+   - fail: not the listed card, a crease, a bend, or heavy whitening → rejected with the reason
+   - unsure: photos too small, no photo of the back, "possible" crease/bend, can't tell whitening → Leads, not pushed
+   - pass: everything else (light whitening allowed: `allowed_whitening`)
+   The photo check also sets the likely PSA range (source "photos"). At most `max_per_run` checks per scan and
+   `max_per_day` a day; a listing is checked once, and a failed run is retried at most `max_attempts` times. A listing
+   whose photos can't be used is skipped; a failure of Claude Code itself (signed out, offline) stops the checks for
+   that scan and the watchdog pushes "Photo check isn't working".
+5. **Only photo-passed DEALs push**, best Whatnot profit first, at most `notify.max_pushes_per_day` (5) a day and still
+   under the hourly cap. Over the day cap they wait on the Deals page, not on Ben's phone. Pushes happen as soon as a
+   card passes (a deal sells fast), so "top 5" means the first 5 that clear the bar, highest profit first within a scan.
+6. **Profit after Whatnot fees** = value × `whatnot.realize_pct` × (1 − commission − processing) − fixed fee − landed.
+   Defaults: 8% commission, 2.9% + $0.30 processing (third-party guides, 2026; not yet checked on Whatnot's own page),
+   100% of value realized until our Whatnot partner tells us what share of value a card fetches live. Ranking only.
+
+With `condition_filter.enabled` off, the rules below run as before (every listing pushes, Settings switch).
 
 ## Decision rules (defaults, all editable)
 
@@ -63,13 +102,18 @@ the run itself honours `scan_interval_min`).
   - Until grade values exist (see Values by grade), the range is shown but doesn't change the value.
 - **Ambiguity is conservative**: when variant is unclear we value at the lower variant and never push low-confidence matches.
 - **Seeding**: the first time a market is scanned, everything already listed is stored without pushing; one summary push says how many deals are waiting on the dashboard.
+  With the condition filter on, seeded listings are never looked up or photo-checked either; the summary counts the would-be deals.
 - **Caps**: at most `max_pushes_per_hour`; the overflow becomes one "N more on dashboard" push.
 - **Sold or ended listings** (Judy, 2026-10-31; a Dark Gengar sold on Oct 26 still came back in search on Oct 30):
   - eBay's search can return listings that already sold, so search alone never proves a listing is for sale.
   - Just before a push, the listing's own record is read (the same lookup as the seller's condition). Sold, out of
-    stock or ended means no push; it goes straight to History as "gone" with the reason.
-  - Every `recheck_open_min` minutes (default 60) each open Deals listing is looked up again; sold or ended ones move to
-    History as "gone". The recheck stays inside the daily eBay budget.
+    stock or ended means no push; it goes straight to History as "gone" with the reason. With the condition filter,
+    a read from the last 30 minutes (e.g. the photo check's) counts; an older one is read again.
+  - Every `recheck_open_min` minutes (default 60) open Deals listings are looked up again, longest-unchecked first, at
+    most `recheck_max_per_hour`; sold or ended ones move to History as "gone".
+  - **Searches come first** (2026-11-01: the recheck of 522 open deals used the whole day's 5,000 calls by 11 am).
+    Lookups (seller condition, photo check, recheck) only spend what's left after reserving every remaining search of
+    the day.
   - Dropping out of search results proves nothing (each search returns only the newest 200), so it isn't used.
 
 ## Markets
@@ -131,8 +175,13 @@ Each value carries its source (Collectr, Ours, PriceCharting) and the date it wa
 
 - 2026-10-28: Ben is told about every listing of the six cards, not just deals (`push_every_listing`, switchable in Settings).
 - 2026-10-31: values are stored per grade and typed in the shared Google Sheet, not on the dashboard (see Values by grade).
+- 2026-11-01: raw near-mint cards only, photo-checked by Claude, at most 5 pushes a day ranked by Whatnot profit (see
+  Condition filter). Graded slabs are out. Collectr values for the shortlist are looked up by Claude in the browser in
+  our sessions and recorded in the sheet; until then a deal says "TCGplayer · not checked on Collectr".
+- 2026-11-01: the 522 listings open on Deals were re-sorted under the new rules; those that don't meet them went to
+  History as "Passed: doesn't meet condition rules". Nothing was deleted.
 
 ## Open decisions (owner: Judy/Ben)
 
-- Graded cards push as LISTED while `push_every_listing` is on. Once the sheet has grade values they can count as DEALs
-  (see Values by grade); until then they stay LISTED.
+- Whatnot partner: which price range sells best live, and what share of Collectr value a card fetches on stream
+  (sets `whatnot.realize_pct` and possibly a price range).

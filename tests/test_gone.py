@@ -3,6 +3,7 @@ import unittest
 from radar import db, notify, run
 from radar.config import load_settings
 from radar.scouts.ebay import gone_reason
+from tests.helpers import legacy_settings
 from tests.test_cycle import CycleDB, listing
 from tests.test_grading import DetailScout
 
@@ -38,7 +39,7 @@ class GoneScout(DetailScout):
 
 class InTheScan(CycleDB):
     def scan(self, scout):
-        return run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None)
+        return run.cycle(con=self.con, scouts=[scout], force=True, dry=True, log=lambda *_: None, settings=legacy_settings())
 
     def open_ids(self):
         return {r["item_id"] for r in db.open_deals(self.con)}

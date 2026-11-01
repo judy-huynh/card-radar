@@ -8,10 +8,11 @@
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const usd = v => v == null ? "—" : Math.round(v).toLocaleString("en-US");
   const gapCls = g => g == null ? "" : g <= -20 ? "c-good" : g <= -5 ? "c-warn" : "";
-  // Potential return = value − landed cost, before selling fees; % is on what you'd pay.
+  // Profit = what our partner would get selling it on Whatnot (value less Whatnot's fees) − landed cost; % is on what
+  // you'd pay. Falls back to value − landed when no Whatnot profit is stored.
   const ret = l => {
     if (l.gap_pct == null || l.value_usd == null || l.landed_usd == null) return '<span class="na">—</span>';
-    const p = l.value_usd - l.landed_usd, pct = p / l.landed_usd * 100;
+    const p = profit(l), pct = p / l.landed_usd * 100;
     return `<span class="gap ${gapCls(l.gap_pct)}">${p >= 0 ? "+" : "−"}$${usd(Math.abs(p))}</span><span class="alt">${p >= 0 ? "+" : "−"}${Math.abs(Math.round(pct))}%</span>`;
   };
   const MP = { TCGPLAYER: "TCGplayer", EBAY_US: "eBay US", EBAY_CA: "eBay CA", EBAY_GB: "eBay UK", EBAY_AU: "eBay AU", EBAY_DE: "eBay DE" };
@@ -20,6 +21,8 @@
     catalog: ["Card values", "TCGplayer prices for every target card, daily"],
     fx: ["Exchange rates", "Daily currency rates"],
     decider: ["Scoring", "Matches and scores each listing"],
+    photos: ["Photo check", "Claude looks at near-mint listings' photos for creases, bends and whitening"],
+    recheck: ["Still for sale?", "Looks up open deals on eBay; sold ones move to History"],
     notifier: ["Phone alerts", "Sends ntfy pushes"],
     watchdog: ["Watchdog", "Warns you when something breaks"],
   };
@@ -51,7 +54,7 @@
   }
 
   // ---- sorting: click a column header; every list starts at the highest potential return --------
-  const profit = l => (l.value_usd == null || l.landed_usd == null || l.gap_pct == null) ? null : l.value_usd - l.landed_usd;
+  const profit = l => (l.value_usd == null || l.landed_usd == null || l.gap_pct == null) ? null : l.flip_usd ?? l.value_usd - l.landed_usd;
   const COND_RANK = { NM: 5, LP: 4, MP: 3, HP: 2, DMG: 1 };
   const SORT_KEYS = {
     card: l => ((l.name ? l.name + " " + l.number : l.title) || "").toLowerCase(),
@@ -132,6 +135,10 @@
   }
   // likely PSA range, so the deal can be checked against Collectr's price for that grade
   function gradeLine(l) {
+    const photo = l.photo_verdict ? `<div class="grade ph-${esc(l.photo_verdict)}">Photos ${esc({ pass: "pass", fail: "fail", unsure: "unsure" }[l.photo_verdict])}</div>` : "";
+    return photo + psaLine(l);
+  }
+  function psaLine(l) {
     if (l.grade_low == null) return "";
     const rng = l.grade_low === l.grade_high ? l.grade_low : `${l.grade_low}–${l.grade_high}`;
     const src = l.grade_source === "photos" ? "photo check" : "seller's condition";
@@ -157,11 +164,14 @@
   }
 
   function renderDeals(s) {
+    const f = s.condition_filter;
+    if (f) $("#dealslede").textContent = `Raw near-mint cards whose photos passed the check, best profit first. Up to ${f.max_pushes_per_day} a day `
+      + "also buzz Ben's phone. Values are TCGplayer's until checked on Collectr.";
     const open = s.deals.filter(d => d.decision === "open");
     const best = open.filter(d => profit(d) != null).sort((a, b) => profit(b) - profit(a))[0];
     $("#tiles").innerHTML = [
       ["To review", open.length, `${open.filter(d => d.tier === "DEAL").length} under threshold`],
-      ["Best potential return", best ? `+$${usd(profit(best))}` : "—", best ? `${best.name} ${best.number}` : ""],
+      ["Best profit after Whatnot fees", best ? `${profit(best) >= 0 ? "+" : "−"}$${usd(Math.abs(profit(best)))}` : "—", best ? `${best.name} ${best.number}` : ""],
       ["Pushed this week", s.stats.deals_week, `${s.stats.bought_week} bought`],
     ].map(([k, v, m]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}${m ? `<small>${esc(m)}</small>` : ""}</div></div>`).join("");
 
@@ -183,7 +193,7 @@
     $("#log tbody").innerHTML = logRows.length ? logRows.map(a => `<tr>
       <td><div class="title">${a.name ? esc(a.name + " " + a.number) : esc(a.title)}</div><div class="meta">${esc((a.sent_at || "").slice(5, 16))}</div></td>
       <td class="num">${usd(a.landed_usd)}</td><td class="num">${usd(a.value_usd)}</td>
-      <td>${esc({ passed: "Passed", bought: "Bought", gone: "Gone" }[a.decision] || a.decision)}</td><td>${esc(a.outcome || "—")}</td></tr>`).join("")
+      <td>${esc({ passed: "Passed", bought: "Bought", gone: "Gone", filtered: "Passed: rules" }[a.decision] || a.decision)}</td><td>${esc(a.outcome || "—")}</td></tr>`).join("")
       : `<tr><td colspan="5" class="empty">Nothing yet. Pass or Bought a deal and it moves here.</td></tr>`;
     pager("log", s.log.length);
   }
@@ -235,9 +245,16 @@
   }
 
   function renderSettings(s) {
+    const f = s.condition_filter;
+    $("#pushmode").hidden = !!f;
+    if (f) {
+      $("#pushnote").textContent = `Up to ${f.max_pushes_per_day} a day: raw cards the seller calls near mint, whose photos pass Claude's check `
+        + "(no creases, not bent, at most light whitening on the back corners), under the push gap below. Best profit after Whatnot fees first. "
+        + "Graded slabs and played cards never push; Leads shows why.";
+    }
     const every = !!s.push_every_listing;
     document.querySelectorAll("#pushmode button").forEach(b => b.setAttribute("aria-selected", String((b.dataset.push === "1") === every)));
-    $("#pushnote").textContent = every
+    if (!f) $("#pushnote").textContent = every
       ? "Every new listing of the six cards pushes, whatever the price. Deals are marked DEAL. Lots, fakes, Japanese copies and other cards never push."
       : "Only listings under the push gap below, or with no known value, push. Everything else waits in Leads.";
     $("#targets tbody").innerHTML = s.targets.map(t => `<tr data-id="${esc(t.id)}">

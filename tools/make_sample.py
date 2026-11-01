@@ -26,7 +26,7 @@ def L(i, tid, mp, title, price, cur, country, ship, seller, fb, pct=99.8, buying
 
 OLD = [L(1, "expedition-holo", "EBAY_US", "Pokemon Expedition Charizard 6/165 Holo Rare WOTC", 905.0, "USD", "US", 5, "vintagevault", 4120)]
 NEW = OLD + [
-    L(2, "aquapolis-holo", "EBAY_CA", "Aquapolis Crystal Lugia 149/147 Holo NM e-Reader", 495.0, "CAD", "CA", 18, "tdotcards", 1204),
+    L(2, "aquapolis-holo", "EBAY_CA", "Aquapolis Crystal Lugia 149/147 Holo NM e-Reader", 420.0, "CAD", "CA", 18, "tdotcards", 1204),
     L(3, "dark-gengar", "EBAY_GB", "Dark Gengar 6/105 Neo Destiny Holo Rare WOTC LP", 590.0, "GBP", "GB", 9.5, "pokebritannia", 812, 100),
     L(4, "aquapolis-holo", "EBAY_US", "Kingdra H14/H32 Aquapolis Holo Rare NM", 150.0, "USD", "US", 4.5, "mlb_cardz", 312, 100),
     L(5, "lc-reverse", "EBAY_US", "Charizard 003/110 Legendary Collection REVERSE HOLO Fireworks", 6400.0, "USD", "US", 0, "grailhouse", 2290),
@@ -52,6 +52,28 @@ class Scout:
     def run(self, job):
         return [dict(x, dest=job.dest) for x in self.batch if x["target_id"] == job.target["id"]]
 
+    def details(self, item_id, marketplace):   # the seller's eBay "Card Condition" pick, and the photos
+        return {"seller_condition": PICKS.get(item_id, "Near mint or better"), "gone": None,
+                "images": [f"https://i.ebayimg.com/{item_id}.jpg"]}
+
+
+PICKS = {"ex6": "Lightly played (Excellent)", "ex7": "Moderately played (Very good)"}
+CHECKS = {   # what Claude's photo check said, per example listing
+    "ex2": dict(back_corner_whitening="light", psa_low=7, psa_high=9, summary="Clean copy; light specks on one back corner."),
+    "ex4": dict(crease="yes", psa_low=3, psa_high=5, summary="A crease runs across the top left of the front."),
+    "ex12": dict(back_corner_whitening="none", psa_low=8, psa_high=9, summary="Sharp corners and a clean back."),
+}
+
+
+def checker(label, title, urls, settings):
+    from radar import photos
+    item = urls[0].rsplit("/", 1)[1][:-4]
+    a = dict({"is_the_card": True, "photos_good_enough": True, "back_shown": True, "crease": "none", "bend": "none",
+              "back_corner_whitening": "light", "other_damage": "", "psa_low": 7, "psa_high": 8,
+              "summary": "No creases or bends; light whitening on the back corners."}, **CHECKS.get(item, {}))
+    v, reason = photos.verdict(a, settings)
+    return {"verdict": v, "reason": reason, "detail": a, "low": a["psa_low"], "high": a["psa_high"]}
+
 
 con = db.connect()
 cols = list(CARDS[0].keys())
@@ -64,17 +86,13 @@ for a in ("catalog", "fx"):
 con.commit()
 quiet = lambda *_: None
 s = Scout()
-run.cycle(con=con, scouts=[s], force=True, dry=True, log=quiet)   # seed: Charizard was already listed
+settings = load_settings()
+settings["condition_filter"]["photo_check"]["max_per_run"] = 20
+run.cycle(con=con, scouts=[s], force=True, dry=True, log=quiet, settings=settings, checker=checker)   # seed: Charizard was already listed
 s.batch = NEW
-run.cycle(con=con, scouts=[s], force=True, dry=True, log=quiet)   # live: the rest push
+run.cycle(con=con, scouts=[s], force=True, dry=True, log=quiet, settings=settings, checker=checker)   # live: checks, pushes
 for mp, n in (("EBAY_US", 184), ("EBAY_CA", 41), ("EBAY_GB", 63), ("EBAY_AU", 22), ("EBAY_DE", 17)):
     db.agent_ok(con, f"scout:{mp}", f"{n} results")
-# grade ranges: one photo check, the rest from the seller's eBay "Card Condition" pick
-grading.record_photos(con, "ex3", 6, 7, "Clean front; corners look sharp, light edge wear.")
-for i, pick in (("ex2", "Near mint or better"), ("ex4", "Near mint or better"), ("ex6", "Lightly played (Excellent)"),
-                ("ex7", "Moderately played (Very good)"), ("ex8", "Near mint or better")):
-    grading.record_seller(con, i, pick, load_settings())
-pipeline.rescore(con, load_targets(), fx.latest(con)[0], load_settings())
 done = db.one(con, "SELECT a.id FROM alerts a JOIN listings l USING(item_id) WHERE l.item_id='ex12'")
 if done:
     con.execute("UPDATE alerts SET decision='bought', decided_at=?, outcome='Arrived NM, listed at US$245' WHERE id=?", (db.now(), done["id"]))

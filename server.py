@@ -15,7 +15,7 @@ LISTING_COLS = """l.item_id, l.marketplace, l.title, l.url, l.image, l.price, l.
   l.flags, l.condition, l.value_usd, l.value_source, l.landed, l.best_dest, l.landed_usd, l.gap_pct, l.tier, l.reason,
   l.target_id, c.name, c.number, c.subtype, c.set_name, c.market AS tcg_market, c.low AS tcg_low, c.tcg_url,
   c.updated AS tcg_updated, o.value_usd AS collectr_usd, g.low AS grade_low, g.high AS grade_high,
-  g.source AS grade_source, g.seller_condition, g.note AS grade_note"""
+  g.source AS grade_source, g.seller_condition, g.note AS grade_note, l.flip_usd, g.photo_verdict, g.photo_reason"""
 JOIN_CARD = """LEFT JOIN cards c ON c.card_key = l.card_key LEFT JOIN overrides o ON o.card_key = l.card_key
   LEFT JOIN grades g ON g.item_id = l.item_id"""
 
@@ -35,7 +35,7 @@ def state(con):
     deals = _decode(db.rows(con, f"""SELECT a.id AS alert_id, a.kind, a.pushed, a.sent_at, a.decision, {LISTING_COLS}
         FROM alerts a JOIN listings l USING(item_id) {JOIN_CARD}
         WHERE a.decision='open' AND a.id IN (SELECT MAX(id) FROM alerts GROUP BY item_id)
-          AND l.tier IN ('DEAL','LISTED')
+          AND l.tier IN ('DEAL','LISTED')   -- same filter as db.open_deals
           AND NOT (a.kind = 'seeded' AND l.tier != 'DEAL')   -- listings already for sale on day one live in Leads
         ORDER BY a.sent_at DESC LIMIT 300"""))
     # every listing worth a look (biggest gap first), plus the latest rejects so "why not?" is answerable
@@ -64,6 +64,8 @@ def state(con):
         "runs": [dict(r, errors=json.loads(r["errors"] or "[]")) for r in db.rows(con, "SELECT * FROM runs ORDER BY id DESC LIMIT 12")],
         "last_run": last, "interval_min": settings["scan_interval_min"],
         "push_every_listing": bool(settings["decide"].get("push_every_listing")),
+        "condition_filter": {"max_pushes_per_day": settings["notify"].get("max_pushes_per_day")}
+                            if settings.get("condition_filter", {}).get("enabled") else None,
         "fx": {"cad": rates and rates.get("CAD"), "at": fx_at},
         "budget": {"used": db.calls_today(con, "ebay"), "limit": settings["ebay"]["daily_call_budget"]},
         "markets": [m["id"] for m in settings["ebay"]["marketplaces"]],

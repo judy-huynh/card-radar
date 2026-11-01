@@ -63,7 +63,8 @@
           "NYC"
         ]
       }
-    ]
+    ],
+    "recheck_max_per_hour": 40
   },
   "decide": {
     "min_seller_feedback": 10,
@@ -73,14 +74,57 @@
     "push_auctions": false,
     "big_deal_gap_pct": 35,
     "push_tcgplayer_lows": false,
-    "push_every_listing": true
+    "push_every_listing": false
+  },
+  "condition_filter": {
+    "enabled": true,
+    "raw_only": true,
+    "seller_must_say": [
+      "NM"
+    ],
+    "photo_check": {
+      "enabled": true,
+      "command": "claude",
+      "model": "sonnet",
+      "max_images": 8,
+      "timeout_s": 240,
+      "max_per_run": 4,
+      "max_per_day": 40,
+      "max_attempts": 2,
+      "allowed_whitening": [
+        "none",
+        "light"
+      ]
+    },
+    "lookups_per_run": 30
+  },
+  "whatnot": {
+    "realize_pct": 100,
+    "commission_pct": 8.0,
+    "processing_pct": 2.9,
+    "processing_fixed_usd": 0.3
   },
   "grade_from_condition": {
-    "NM": [7, 8],
-    "LP": [5, 6],
-    "MP": [3, 4],
-    "HP": [1, 2],
-    "DMG": [1, 1]
+    "NM": [
+      7,
+      8
+    ],
+    "LP": [
+      5,
+      6
+    ],
+    "MP": [
+      3,
+      4
+    ],
+    "HP": [
+      1,
+      2
+    ],
+    "DMG": [
+      1,
+      1
+    ]
   },
   "condition_multipliers": {
     "NM": 1.0,
@@ -92,7 +136,8 @@
   },
   "notify": {
     "max_pushes_per_hour": 10,
-    "digest_hour": 9
+    "digest_hour": 9,
+    "max_pushes_per_day": 5
   },
   "watchdog": {
     "stale_values_h": 72,

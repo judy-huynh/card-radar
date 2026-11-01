@@ -2,9 +2,10 @@ import unittest
 from radar.config import load_settings
 from radar.decide import decide
 from radar.landed import landed
+from tests.helpers import legacy_settings
 
 RATES = {"USD": 1.0, "CAD": 1.4, "GBP": 0.75, "EUR": 0.9, "AUD": 1.42, "JPY": 158}
-S = load_settings()
+S = legacy_settings()   # the condition filter has its own tests (test_condition.py)
 S["decide"]["push_every_listing"] = False   # tier rules first; the every-listing switch is tested on its own
 EVERY = dict(S, decide=dict(S["decide"], push_every_listing=True))
 

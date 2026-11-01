@@ -26,6 +26,14 @@ def evaluate(con, listing, target, cards, rates, settings):
     per_dest, best = landed.landed(listing, quotes, settings["destinations"], rates)
     landed_usd = per_dest[best]["usd"] if best else None
     tier, reason = decide.decide(listing, m, val, landed_usd, target, settings)
+    needs = None
+    if decide.filtering(settings) and listing.get("source") != "tcgplayer":
+        # would it be a DEAL if the seller says near mint? Only then is the seller's pick worth a lookup
+        nm_tier = tier
+        if not (g and g.get("seller_checked_at")) and m["condition"] is None:
+            nm_tier, _ = decide.decide(listing, dict(m, condition="NM"),
+                                       value.adjusted(base, "NM", settings["condition_multipliers"]), landed_usd, target, settings)
+        tier, reason, needs = decide.condition_gate(tier, reason, m, g, nm_tier, settings)
     buying = listing.get("buying") or ""
     auction_only = "AUCTION" in buying and "FIXED_PRICE" not in buying   # price is the current bid, not the final price
     gap = None if (val is None or landed_usd is None or auction_only) else round((landed_usd / val - 1) * 100, 1)
@@ -33,7 +41,17 @@ def evaluate(con, listing, target, cards, rates, settings):
             "flags": json.dumps(m["flags"]), "condition": m["condition"],
             "value_usd": None if val is None else round(val, 2), "value_source": source,
             "landed": json.dumps(per_dest), "best_dest": best, "landed_usd": landed_usd, "gap_pct": gap,
-            "tier": tier, "reason": reason}
+            "flip_usd": None if gap is None else flip(val, landed_usd, settings),
+            "tier": tier, "reason": reason, "_needs": needs}
+
+
+def flip(value_usd, landed_usd, settings):
+    """Profit if our partner sells it live on Whatnot: their share of value, less Whatnot's fees, less what we paid."""
+    w = settings.get("whatnot")
+    if not w:
+        return None
+    sale = value_usd * w["realize_pct"] / 100
+    return round(sale * (1 - (w["commission_pct"] + w["processing_pct"]) / 100) - w["processing_fixed_usd"] - landed_usd, 2)
 
 
 def save(con, listing, result):
@@ -41,7 +59,7 @@ def save(con, listing, result):
     cols = ["item_id", "source", "marketplace", "target_id", "title", "url", "image", "price", "currency", "buying",
             "seller", "feedback", "feedback_pct", "item_country", "item_location", "created", "ends", "condition_raw",
             "card_key", "confidence", "variant", "grade", "flags", "condition", "value_usd", "value_source",
-            "landed", "best_dest", "landed_usd", "gap_pct", "tier", "reason"]
+            "landed", "best_dest", "landed_usd", "gap_pct", "flip_usd", "tier", "reason"]
     vals = [fields.get(c) for c in cols]
     stamp = db.now()
     con.execute(f"""INSERT INTO listings({",".join(cols)}, first_seen, last_seen, first_price)
@@ -59,7 +77,7 @@ def rescore(con, targets, rates, settings, where="tier IN ('DEAL','LISTED','WATC
         if not t:
             continue
         cards = cache.setdefault(t["group_id"], cards_for(con, t["group_id"]))
-        res = evaluate(con, l, t, cards, rates, settings)
+        res = {k: v for k, v in evaluate(con, l, t, cards, rates, settings).items() if not k.startswith("_")}
         con.execute(f"UPDATE listings SET {', '.join(f'{k}=?' for k in res)} WHERE item_id=?", list(res.values()) + [l["item_id"]])
         n += 1
     con.commit()
